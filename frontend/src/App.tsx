@@ -45,14 +45,12 @@ export function App() {
     setStep((prev) => prev - 1);
   };
 
-  // Cập nhật totalSteps để phù hợp với luồng mới
-  // Nếu là returning, luồng kết thúc ở ConfirmationScreen (step 7), vậy totalSteps = 6 (các bước từ 1 đến 6)
-  // Nếu là new, luồng kết thúc ở FaceId (step 8), vậy totalSteps = 7 (các bước từ 1 đến 7)
   const totalSteps =
       formData.customerType === "returning" ? 6 : formData.customerType === "new" ? 7 : 0;
 
   const checkUserInfo = async (phone: string) => {
-    const response = await fetch("http://localhost:5000/check-phone", {
+    // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
+    const response = await fetch("/api/app1/check-phone", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone })
@@ -65,7 +63,8 @@ export function App() {
 
   const handleProcessFace = async (phone: string): Promise<{ name: string; phone: string; status: string } | null> => {
     try {
-      const response = await fetch('http://localhost:5005/initiate-faceid', {
+      // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
+      const response = await fetch('/api/app5/initiate-faceid', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +100,8 @@ export function App() {
 
   const handleProcessPhoneNumber = async (phone: string): Promise<'found' | 'not_found' | 'error'> => {
     try {
-      const postResponse = await fetch('http://localhost:5004/process-phone-from-screen', {
+      // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
+      const postResponse = await fetch('/api/app4/process-phone-from-screen', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,7 +118,8 @@ export function App() {
       return new Promise((resolve) => {
         const intervalId = setInterval(async () => {
           try {
-            const getResponse = await fetch(`http://localhost:5004/check-automation-result/${phone}`);
+            // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
+            const getResponse = await fetch(`/api/app4/check-automation-result/${phone}`);
             if (!getResponse.ok) {
               console.error('Lỗi khi kiểm tra kết quả:', getResponse.status);
               clearInterval(intervalId);
@@ -191,7 +192,6 @@ export function App() {
                       </div>
                   ) : (
                       <>
-                        {/* Cập nhật điều kiện hiển thị ProgressBar */}
                         {step >= 1 && step <= totalSteps && step !== 10 && step !== 20 && step !== 30 && (
                             <div className="bg-blue-600 p-6 text-white">
                               <h1 className="text-2xl font-bold">
@@ -199,7 +199,6 @@ export function App() {
                                     ? "New Membership / Membership Renewal"
                                     : "Đăng ký mới / Gia hạn gói tập"}
                               </h1>
-                              {/* totalSteps đã được cập nhật ở trên */}
                               <ProgressBar currentStep={step} totalSteps={totalSteps} />
                             </div>
                         )}
@@ -220,7 +219,6 @@ export function App() {
                           {step === 4 && <> {console.log("App.tsx (Step 4 - ServiceScreen):", formData)} <ServiceScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} /></> }
                           {step === 5 && <> {console.log("App.tsx (Step 5 - MembershipScreen):", formData)} <MembershipScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} /></> }
                           {step === 6 && <> {console.log("App.tsx (Step 6 - PaymentScreen):", formData)} <PaymentScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} resetFormData={resetFormData} resetToIntro={resetToIntro} /></> }
-                          {/* Màn hình 7: ConfirmationScreen */}
                           {step === 7 && (
                               <>
                                 {console.log("App.tsx (Step 7 - ConfirmationScreen):", formData)}
@@ -229,11 +227,10 @@ export function App() {
                                     updateFormData={updateFormData}
                                     nextStep={nextStep}
                                     language={language}
-                                    resetToIntro={resetToIntro} // Truyền resetToIntro vào ConfirmationScreen
+                                    resetToIntro={resetToIntro}
                                 />
                               </>
                           )}
-                          {/* Màn hình 8: FaceId (chỉ cho khách mới) */}
                           {step === 8 && formData.customerType === "new" && (
                               <FaceId language={language} resetToIntro={resetToIntro} checkUserInfo={handleProcessFace} />
                           )}

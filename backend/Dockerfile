@@ -1,15 +1,13 @@
-# File: backend/Dockerfile (PHIÊN BẢN SỬA LỖI CHROME - Lần 2)
+# File: backend/Dockerfile (PHIÊN BẢN SỬA LỖI CHROME - Lần 3)
 
 FROM python:3.9-slim
 
-# === BƯỚC 1: Cài đặt các gói cần thiết và Google Chrome ===
-# Cập nhật và cài đặt các gói cơ bản
+# === BƯỚC 1: Cài đặt các gói cần thiết và Google Chrome (Giữ nguyên như lần sửa trước) ===
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
     curl \
-    # Các thư viện phụ thuộc thường cần cho Chrome
     libglib2.0-0 \
     libnss3 \
     libgconf-2-4 \
@@ -50,40 +48,22 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Thêm Google Chrome repository và cài đặt Chrome
-# Đảm bảo rằng khóa được thêm đúng cách và source list được tạo chính xác
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# === BƯỚC 2: Cài đặt ChromeDriver tương thích ===
-# Kiểm tra xem google-chrome có thực sự chạy được không
-RUN google-chrome --version || echo "google-chrome command failed but continuing"
-
-# Cố gắng lấy CHROME_VERSION một cách an toàn hơn
-RUN CHROME_VERSION_FULL=$(google-chrome --version 2>/dev/null || echo "unknown") \
-    && if [ "$CHROME_VERSION_FULL" != "unknown" ]; then \
-         CHROME_MAJOR_VERSION=$(echo "$CHROME_VERSION_FULL" | sed -E 's/.* ([0-9]+)\..*/\1/'); \
-       else \
-         echo "Failed to get Chrome version, defaulting to a common recent version for ChromeDriver"; \
-         CHROME_MAJOR_VERSION="120"; \
-       fi \
-    # Tiếp tục với CHROME_MAJOR_VERSION đã xác định (hoặc mặc định)
-    && CHROME_DRIVER_VERSION=$(wget -qO- "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR_VERSION}") \
-    # Nếu không tìm thấy LATEST_RELEASE, thử với phiên bản cụ thể hơn
-    && if [ -z "$CHROME_DRIVER_VERSION" ]; then CHROME_DRIVER_VERSION=$(wget -qO- "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR_VERSION}"); fi \
-    && if [ -z "$CHROME_DRIVER_VERSION" ]; then echo "Still cannot find ChromeDriver version for Chrome ${CHROME_MAJOR_VERSION}, trying fixed version"; CHROME_DRIVER_VERSION="120.0.6099.109"; fi \
-    && echo "Attempting to install ChromeDriver version: ${CHROME_DRIVER_VERSION}" \
-    # Thử tải từ endpoint mới của Chrome for Testing nếu có
-    && wget -q "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_DRIVER_VERSION}/linux64/chromedriver-linux64.zip" -O chromedriver_linux64.zip \
-    || wget -q "https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_VERSION}/chromedriver_linux64.zip" -O chromedriver_linux64.zip \
+# === BƯỚC 2: Cài đặt một phiên bản ChromeDriver cụ thể (ĐƠN GIẢN HÓA) ===
+# Chúng ta sẽ cài một phiên bản ChromeDriver khá phổ biến, ví dụ 114.0.5735.90
+# Nếu sau này Selenium báo lỗi không tương thích, chúng ta sẽ điều chỉnh phiên bản này.
+RUN CHROME_DRIVER_FIXED_VERSION="114.0.5735.90" \
+    && echo "Attempting to install fixed ChromeDriver version: ${CHROME_DRIVER_FIXED_VERSION}" \
+    && wget -q "https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_FIXED_VERSION}/chromedriver_linux64.zip" -O chromedriver_linux64.zip \
     && unzip chromedriver_linux64.zip -d /usr/local/bin/ \
     && rm chromedriver_linux64.zip \
     && chmod +x /usr/local/bin/chromedriver \
     && chromedriver --version
-
 
 # === BƯỚC 3: Cài đặt các ứng dụng Python (như cũ) ===
 RUN apt-get update && apt-get install -y supervisor --no-install-recommends \

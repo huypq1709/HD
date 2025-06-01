@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Service cho Backend Flask (chứa 5 ứng dụng con)
+  backend:
+    build: ./backend
+    restart: always
+
+  # Service cho Frontend React
+  frontend:
+    build: ./frontend
+    restart: always
+
+  # Service cho Nginx Reverse Proxy
+  nginx-proxy:
+    image: nginx:stable-alpine
+    restart: always
+    ports:
+      # Mở cổng 80 của máy chủ và ánh xạ vào cổng 80 của container Nginx
+      - "80:80"
+    volumes:
+      # Ánh xạ file cấu hình nginx.conf vào trong container
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      # Đảm bảo Nginx chỉ khởi động sau khi backend và frontend đã sẵn sàng
+      - backend
+      - frontend

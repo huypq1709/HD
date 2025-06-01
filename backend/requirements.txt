@@ -1,0 +1,7 @@
+# File: backend/requirements.txt
+Flask
+gunicorn
+# Thêm các thư viện khác của bạn ở đây, mỗi thư viện một dòng
+# ví dụ:
+# numpy
+# opencv-python

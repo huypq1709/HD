@@ -3,6 +3,7 @@ Flask
 gunicorn
 Flask-Cors
 selenium 
+beautifulsoup4
 # Thêm các thư viện khác của bạn ở đây, mỗi thư viện một dòng
 # ví dụ:
 # numpy

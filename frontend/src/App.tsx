@@ -50,7 +50,7 @@ export function App() {
 
   const checkUserInfo = async (phone: string) => {
     // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
-    const response = await fetch("/api/app1/check-phone", {
+    const response = await fetch("/api/app3/check-phone", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone })
@@ -64,7 +64,7 @@ export function App() {
   const handleProcessFace = async (phone: string): Promise<{ name: string; phone: string; status: string } | null> => {
     try {
       // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
-      const response = await fetch('/api/app5/initiate-faceid', {
+      const response = await fetch('/api/app4/initiate-faceid', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ export function App() {
   const handleProcessPhoneNumber = async (phone: string): Promise<'found' | 'not_found' | 'error'> => {
     try {
       // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
-      const postResponse = await fetch('/api/app4/process-phone-from-screen', {
+      const postResponse = await fetch('/api/app2/process-phone-from-screen', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ export function App() {
         const intervalId = setInterval(async () => {
           try {
             // SỬA Ở ĐÂY: Dùng đường dẫn tương đối
-            const getResponse = await fetch(`/api/app4/check-automation-result/${phone}`);
+            const getResponse = await fetch(`/api/app2/check-automation-result/${phone}`);
             if (!getResponse.ok) {
               console.error('Lỗi khi kiểm tra kết quả:', getResponse.status);
               clearInterval(intervalId);

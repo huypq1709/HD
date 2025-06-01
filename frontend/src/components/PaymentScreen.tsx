@@ -48,7 +48,7 @@ export function PaymentScreen({
         const startPaymentSession = async () => {
             try {
                 // Gọi API backend để tạo phiên thanh toán
-                const response = await fetch("http://localhost:5001/start-payment-session", {
+                const response = await fetch("/api/app1/start-payment-session", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -85,7 +85,7 @@ export function PaymentScreen({
             pollingIntervalRef.current = setInterval(async () => {
                 try {
                     // Gọi API kiểm tra trạng thái định kỳ mỗi 2 giây
-                    const response = await fetch(`http://localhost:5001/check-payment-status?expected_amount=${expectedAmount}`);
+                    const response = await fetch(`/api/app1/check-payment-status?expected_amount=${expectedAmount}`);
                     const result = await response.json();
                     console.log("Polling for status:", result);
 
@@ -97,7 +97,7 @@ export function PaymentScreen({
                     console.error("Polling failed:", error);
                     // Có thể tạm dừng polling nếu có lỗi mạng
                 }
-            }, 2000); // Polling mỗi 2 giây
+            }, 1000); // Polling mỗi 2 giây
         }
 
         // Cleanup: Dọn dẹp interval khi component unmount hoặc khi trạng thái thay đổi

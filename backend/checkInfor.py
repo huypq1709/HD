@@ -1,11 +1,7 @@
-# File: backend/checkInfor.py (Thêm các dòng PRINT DEBUG)
-print("DEBUG: checkInfor.py - Bắt đầu import các module") # PRINT 1
+
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-# Di chuyển các import của Selenium và BeautifulSoup ra ngoài hàm nếu chúng chỉ dùng trong hàm này
-# Hoặc để ở đầu file nếu dùng ở nhiều nơi khác trong file checkInfor.py
-print("DEBUG: checkInfor.py - Chuẩn bị import Selenium và BS4") # PRINT 1.1
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -17,22 +13,20 @@ from bs4 import BeautifulSoup
 import time
 import tempfile  # Thêm import này cho giải pháp thư mục tạm
 import shutil  # Thêm import này để xóa thư mục tạm
-print("DEBUG: checkInfor.py - Đã import xong Selenium và BS4") # PRINT 1.2
 
 
-print("DEBUG: checkInfor.py - Chuẩn bị khởi tạo Flask app") # PRINT 2
+
+
 app = Flask(__name__)
 CORS(app)
-print("DEBUG: checkInfor.py - Đã khởi tạo Flask app và CORS") # PRINT 3
+
 
 
 @app.route("/check-phone", methods=["POST"])
 def check_phone():
-    print("DEBUG: checkInfor.py - Nhận được yêu cầu vào /check-phone") # PRINT A
     data = request.get_json()
     phone_number = data.get("phone", "")
     if not phone_number or len(phone_number) != 10 or not phone_number.isdigit():
-        print(f"DEBUG: checkInfor.py - Số điện thoại không hợp lệ: {phone_number}") # PRINT B1
         return jsonify({"error": "Invalid phone number"}), 400
 
     print(f"DEBUG: checkInfor.py - Bắt đầu xử lý cho số điện thoại: {phone_number}") # PRINT B2
@@ -55,22 +49,80 @@ def check_phone():
     try:
         print("DEBUG: checkInfor.py - Chuẩn bị khởi tạo WebDriver") # PRINT E
         driver = webdriver.Chrome(service=service, options=chrome_options)
-        print("DEBUG: checkInfor.py - WebDriver đã được khởi tạo") # PRINT F
-
-        print("DEBUG: checkInfor.py - Chuẩn bị driver.get('https://hdfitnessyoga.timesoft.vn/')") # PRINT G
         driver.get("https://hdfitnessyoga.timesoft.vn/")
-        print("DEBUG: checkInfor.py - driver.get() hoàn thành") # PRINT H
-
-        # ... (phần còn lại của code Selenium của bạn, bạn có thể thêm print vào đây nữa) ...
 
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys(
             "Vuongvv")
-        print("DEBUG: checkInfor.py - Đã nhập UserName") # PRINT I
-        # ... (Thêm print sau mỗi bước quan trọng của Selenium)
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
+        WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
 
-        # ... (phần còn lại của code) ...
+        time.sleep(5)
 
-        return jsonify({"results": "SOME_DATA_HERE"}) # Thay thế bằng dữ liệu thật
+        radio_all = WebDriverWait(driver, 3).until(
+            EC.element_to_be_clickable((By.ID, "radio_0"))
+        )
+        radio_all.click()
+        time.sleep(0.5)
+
+        search_input = WebDriverWait(driver, 3).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
+        )
+        search_input.clear()
+        search_input.send_keys(phone_number)
+        search_input.send_keys(Keys.ENTER)
+
+        time.sleep(0.5)
+
+        html_content = driver.page_source
+        soup = BeautifulSoup(html_content, "html.parser")
+
+        table_body = soup.find("tbody", class_="show-table-ready")
+        rows = table_body.find_all("tr") if table_body else []
+
+        data_list = []
+
+        for row in rows:
+            cols = row.find_all("td")
+            if len(cols) < 7:
+                continue
+
+            # 0: Tên khách hàng
+            name_elem = cols[0].find("span", class_="ng-binding")
+            name = name_elem.text.strip() if name_elem else ""
+
+            # 2: Số điện thoại
+            phone_text = cols[2].text.strip()
+
+            # 3: Dịch vụ
+            service_text = cols[3].text.strip()
+
+            # 4: Còn lại (span đầu tiên)
+            remaining = ""
+            span_list = cols[5].find_all("span")
+            if span_list:
+                remaining = span_list[0].text.strip()
+
+            # 5: Ngày bắt đầu
+            start_date = cols[6].text.strip()
+
+            # 6: Ngày hết hạn
+            end_date = cols[7].text.strip()
+
+            # Trạng thái
+            status_span = row.find("span", class_=lambda value: value and "status-" in value)
+            status = status_span.text.strip() if status_span else ""
+
+            data_list.append({
+                "name": name,
+                "phone": phone_text,
+                "service": service_text,
+                "remaining": remaining,
+                "start_date": start_date,
+                "end_date": end_date,
+                "status": status
+            })
+
+        return jsonify({"results": data_list})
 
     except Exception as e:
         error_message = f"Error in check_phone: {type(e).__name__} - {str(e)}"

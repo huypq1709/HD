@@ -54,15 +54,20 @@ RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --d
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# === BƯỚC 2: Cài đặt một phiên bản ChromeDriver cụ thể (ĐƠN GIẢN HÓA) ===
-# Chúng ta sẽ cài một phiên bản ChromeDriver khá phổ biến, ví dụ 114.0.5735.90
-# Nếu sau này Selenium báo lỗi không tương thích, chúng ta sẽ điều chỉnh phiên bản này.
-RUN CHROME_DRIVER_FIXED_VERSION="114.0.5735.90" \
-    && echo "Attempting to install fixed ChromeDriver version: ${CHROME_DRIVER_FIXED_VERSION}" \
-    && wget -q "https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_FIXED_VERSION}/chromedriver_linux64.zip" -O chromedriver_linux64.zip \
+
+# === BƯỚC 2: Cài đặt ChromeDriver tương thích (SỬA LẠI CHO ĐÚNG PHIÊN BẢN) ===
+# Lấy phiên bản CHÍNH (major version) của Google Chrome đã cài
+RUN CHROME_MAJOR_VERSION=$(google-chrome --product-version | cut -d. -f1) \
+    && echo "Detected Chrome Major Version: $CHROME_MAJOR_VERSION" \
+    # Tìm phiên bản ChromeDriver *GẦN NHẤT* tương thích với phiên bản Chrome đó từ endpoint mới của Google
+    && CHROME_DRIVER_VERSION=$(curl -sSL https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR_VERSION}) \
+    && echo "Attempting to install ChromeDriver version: ${CHROME_DRIVER_VERSION} for Chrome ${CHROME_MAJOR_VERSION}" \
+    # Tải ChromeDriver từ endpoint mới
+    && wget -q "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_DRIVER_VERSION}/linux64/chromedriver-linux64.zip" -O chromedriver_linux64.zip \
     && unzip chromedriver_linux64.zip -d /usr/local/bin/ \
     && rm chromedriver_linux64.zip \
     && chmod +x /usr/local/bin/chromedriver \
+    && echo "ChromeDriver installed. Version:" \
     && chromedriver --version
 
 # === BƯỚC 3: Cài đặt các ứng dụng Python (như cũ) ===

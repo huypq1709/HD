@@ -55,17 +55,20 @@ RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --d
     && rm -rf /var/lib/apt/lists/*
 
 
-# === BƯỚC 2: Cài đặt ChromeDriver tương thích (SỬA LẠI CHO ĐÚNG PHIÊN BẢN) ===
-# Lấy phiên bản CHÍNH (major version) của Google Chrome đã cài
+# === BƯỚC 2: Cài đặt ChromeDriver tương thích (SỬA LẠI CÁCH GIẢI NÉN/DI CHUYỂN) ===
 RUN CHROME_MAJOR_VERSION=$(google-chrome --product-version | cut -d. -f1) \
     && echo "Detected Chrome Major Version: $CHROME_MAJOR_VERSION" \
-    # Tìm phiên bản ChromeDriver *GẦN NHẤT* tương thích với phiên bản Chrome đó từ endpoint mới của Google
     && CHROME_DRIVER_VERSION=$(curl -sSL https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR_VERSION}) \
     && echo "Attempting to install ChromeDriver version: ${CHROME_DRIVER_VERSION} for Chrome ${CHROME_MAJOR_VERSION}" \
-    # Tải ChromeDriver từ endpoint mới
     && wget -q "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_DRIVER_VERSION}/linux64/chromedriver-linux64.zip" -O chromedriver_linux64.zip \
-    && unzip chromedriver_linux64.zip -d /usr/local/bin/ \
+    # Tạo thư mục tạm để giải nén, tránh ghi đè lung tung
+    && mkdir /tmp/chromedriver_temp \
+    && unzip chromedriver_linux64.zip -d /tmp/chromedriver_temp/ \
+    # Di chuyển file thực thi chromedriver vào đúng vị trí
+    && mv /tmp/chromedriver_temp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
+    # Dọn dẹp
     && rm chromedriver_linux64.zip \
+    && rm -rf /tmp/chromedriver_temp \
     && chmod +x /usr/local/bin/chromedriver \
     && echo "ChromeDriver installed. Version:" \
     && chromedriver --version

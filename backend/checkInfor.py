@@ -29,8 +29,6 @@ def check_phone():
     if not phone_number or len(phone_number) != 10 or not phone_number.isdigit():
         return jsonify({"error": "Invalid phone number"}), 400
 
-    print(f"DEBUG: checkInfor.py - Bắt đầu xử lý cho số điện thoại: {phone_number}") # PRINT B2
-
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
@@ -38,10 +36,6 @@ def check_phone():
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
 
-    print("DEBUG: checkInfor.py - Đã cấu hình chrome_options") # PRINT C
-
-    # service = ChromeService() # Nếu chromedriver đã trong PATH và tương thích
-    # Hoặc chỉ định rõ đường dẫn nếu cần:
     service = ChromeService(executable_path='/usr/local/bin/chromedriver')
     print("DEBUG: checkInfor.py - Đã cấu hình ChromeService") # PRINT D
 

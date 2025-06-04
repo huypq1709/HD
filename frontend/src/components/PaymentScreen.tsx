@@ -266,9 +266,17 @@ export function PaymentScreen({
 
                 <div className="w-full md:w-1/2 text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
                     {qrCodeUrl ? (
+                        // Hiển thị mã QR động nếu qrCodeUrl có giá trị
                         <img src={qrCodeUrl} alt="QR Code SePay" className="h-48 w-48 mx-auto object-contain" />
                     ) : (
-                        <p>{language === "en" ? "Generating QR Code..." : "Đang tạo mã QR..."}</p>
+                        // Hiển thị thông báo chờ hoặc thông báo lỗi nếu qrCodeUrl rỗng
+                        <p className="text-gray-500 h-48 flex items-center justify-center">
+                            {paymentStatus === 'initializing' && (language === "en" ? "Generating QR Code..." : "Đang tạo mã QR...")}
+                            {/* Nếu có lỗi ngay khi khởi tạo session, statusMessage đã được set */}
+                            {(paymentStatus === 'error_session' || paymentStatus === 'error_polling' || statusMessage.includes("Lỗi") || statusMessage.includes("Error")) &&
+                                (statusMessage.includes("payment session") || statusMessage.includes("phiên thanh toán")) && // Chỉ hiện thị khi lỗi liên quan đến session
+                                (language === "en" ? "Could not generate QR code." : "Không thể tạo mã QR.")}
+                        </p>
                     )}
                     <p className="mt-4 text-sm text-gray-600 leading-tight">
                         {language === "en" ? "Scan QR to pay" : "Quét mã QR để thanh toán"}

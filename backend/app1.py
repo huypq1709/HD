@@ -16,7 +16,7 @@ PAYMENT_TIMEOUT_SECONDS = 180
 # Endpoint để frontend gọi đến khởi tạo phiên thanh toán
 # Frontend gọi: /api/app1/initiate-payment
 # Nginx chuyển đến app1.py với path: /initiate-payment
-@app.route('/start-payment-session', methods=['POST'])
+@app.route('/initiate-payment', methods=['POST'])
 def initiate_payment_session():
     print("[app1.py] Received request for /initiate-payment")
     data = request.get_json()

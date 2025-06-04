@@ -33,7 +33,7 @@ def initiate_payment_session():
 
     expected_amount = 0
     if membership_type == "1 day":
-        expected_amount = 5000
+        expected_amount = 10000
     elif membership_type == "1 month":
         expected_amount = 50000
     else:

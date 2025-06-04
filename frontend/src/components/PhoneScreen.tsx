@@ -34,7 +34,7 @@ export function PhoneScreen({
 
     useEffect(() => {
         if (loading) {
-            setCountdown(300);
+            setCountdown(30);
             const intervalId = setInterval(() => {
                 setCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
             }, 1000);

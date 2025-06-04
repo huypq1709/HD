@@ -8,9 +8,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
-import time
 import traceback
-import os
+from selenium.webdriver.chrome.service import Service as ChromeService  # Nên dùng
+import time
+import tempfile  # Thêm import này cho giải pháp thư mục tạm
+import shutil  # Thêm import này để xóa thư mục tạm
 
 app = Flask(__name__)
 CORS(app)
@@ -20,14 +22,19 @@ automation_results = {}
 def run_automation(phone, customer_type):
     """Hàm thực hiện các bước tự động hóa Selenium và lưu kết quả."""
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
 
-    driver = webdriver.Chrome(options=chrome_options)
+    # Tạo thư mục tạm để lưu trữ profile
+    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
+    driver = None
     result = None
 
     try:
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.get("https://hdfitnessyoga.timesoft.vn/")
         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")

@@ -462,7 +462,7 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         if driver:
             driver.quit()
 # --- Endpoint để bắt đầu tự động hóa ---
-@app.route('/api/app5/start-automation', methods=['POST'])
+@app.route('/start-automation', methods=['POST'])
 def start_automation():
     data = request.get_json()
     phone_number = data.get("phoneNumber")

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { registerUser } from '../api/registration'; // Import hàm registerUser từ file riêng
-import Loader from './Loader';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { registerUser } from '../api/registration'; // Đảm bảo hàm này gọi đúng '/api/app5/start-automation'
+import Loader from './Loader'; // Component Loader của bạn
+import { Slogan } from './Slogan'; // Component Slogan của bạn
 
 interface ConfirmationScreenProps {
   formData: {
@@ -11,100 +12,96 @@ interface ConfirmationScreenProps {
     membership: string;
     [key: string]: any;
   };
-  updateFormData: (field: string, value: string) => void;
-  nextStep: () => void; // Dùng để chuyển sang FaceID (khách mới)
+  // updateFormData: (field: string, value: string) => void; // Có vẻ không dùng ở màn hình này
+  nextStep: () => void; // Chuyển sang FaceID cho khách mới
   language: string;
-  resetToIntro: () => void; // Thêm prop này để quay về màn hình giới thiệu
+  resetToIntro: () => void; // Quay về màn hình giới thiệu
 }
 
 export function ConfirmationScreen({ formData, nextStep, language, resetToIntro }: ConfirmationScreenProps) {
-  const [loadingRegistration, setLoadingRegistration] = useState(false);
-  const [errorRegistration, setErrorRegistration] = useState<string>('');
-  const [automationMessage, setAutomationMessage] = useState<string>('');
-  const [automationComplete, setAutomationComplete] = useState(false);
-  const [countdownToHome, setCountdownToHome] = useState<number | null>(null); // Bộ đếm ngược về Home
+  const [isProcessing, setIsProcessing] = useState(true); // Trạng thái chung cho việc đang xử lý
+  const [processMessage, setProcessMessage] = useState<string>(''); // Thông báo cho người dùng (đang xử lý, thành công, lỗi)
+  const [countdown, setCountdown] = useState<number | null>(null); // Đếm ngược về Home cho khách cũ
+  const [paymentStatus, setPaymentStatus] = useState<string>("initializing");
 
-  // useEffect này sẽ chạy MỘT LẦN khi component mount
-  // và kích hoạt toàn bộ quá trình tự động hóa
-  useEffect(() => {
-    // Chúng ta bắt đầu quá trình xử lý ngay khi màn hình xác nhận xuất hiện
-    handleAutomationProcess();
-  }, []); // [] đảm bảo chỉ chạy một lần khi component được render lần đầu
+  const hasInitiatedProcessRef = useRef(false); // Đảm bảo chỉ chạy tự động hóa một lần
+  const hasNavigatedRef = useRef(false);      // Đảm bảo chỉ điều hướng một lần
 
-  // useEffect cho bộ đếm ngược về Home (chỉ khi là khách cũ và tự động hóa hoàn tất)
-  useEffect(() => {
-    let homeTimer: NodeJS.Timeout;
-    if (countdownToHome !== null && countdownToHome > 0) {
-      homeTimer = setInterval(() => {
-        setCountdownToHome((prevTime) => (prevTime !== null ? prevTime - 1 : null));
-      }, 1000);
-    } else if (countdownToHome === 0) {
-      // Khi bộ đếm về 0, quay về Home
-      console.log("Countdown finished, resetting to intro screen.");
-      resetToIntro(); // Gọi hàm resetToIntro được truyền từ App.tsx
-    }
-    return () => clearInterval(homeTimer); // Dọn dẹp timer khi component unmount hoặc dependency thay đổi
-  }, [countdownToHome, resetToIntro]); // Thêm resetToIntro vào dependency array
+  // Hàm xử lý chính
+  const runAutomationProcess = useCallback(async () => {
+    if (hasInitiatedProcessRef.current) return; // Chỉ chạy một lần
+    hasInitiatedProcessRef.current = true;
 
-  // Hàm chính xử lý toàn bộ quá trình: gọi API đăng ký/tự động hóa và quản lý trạng thái
-  const handleAutomationProcess = async () => {
-    setLoadingRegistration(true); // Bật trạng thái loading chung cho toàn bộ quá trình
-    setErrorRegistration('');     // Reset lỗi
-    setAutomationMessage(language === 'en' ? 'Processing registration and automation... Let\'s warm up a bit!' : 'Đang xử lý đăng ký và tự động hóa...Hãy khởi động một chút nhé!');
-    setAutomationComplete(false); // Reset trạng thái hoàn thành
+    setIsProcessing(true);
+    setProcessMessage(language === 'en' ? 'Processing your registration, please wait...' : 'Đang xử lý đăng ký của bạn, vui lòng chờ...');
 
     try {
-      // Gọi hàm registerUser từ file ../api/registration.ts
-      // Hàm này sẽ gửi yêu cầu POST đến backend Flask trên cổng 5007
-      const automationResult = await registerUser(formData);
-      console.log('Automation result from backend:', automationResult);
+      // Gọi API tự động hóa
+      const result = await registerUser(formData); // Hàm này nằm trong api/registration.ts
+      console.log('Automation API result:', result);
 
-      setLoadingRegistration(false); // Tắt loading sau khi nhận được phản hồi từ backend
+      setIsProcessing(false); // Xử lý xong (dù thành công hay thất bại)
 
-      if (automationResult.status === 'success') {
-        setAutomationComplete(true); // Đánh dấu quá trình tự động hóa đã hoàn thành thành công
-
-        // Cập nhật thông báo dựa trên customerType
-        if (formData.customerType === 'returning') {
-          const redirectDelay = automationResult.redirect_delay || 5; // Mặc định 5 giây
-          setCountdownToHome(redirectDelay);
-          setAutomationMessage(language === 'en' ?
-              `Membership renewed successfully! Returning to Home in ${redirectDelay} seconds...` :
-              `Gia hạn thành công! Quay về trang chủ sau ${redirectDelay} giây...`);
-        } else { // customerType === 'new'
-          const redirectDelay = automationResult.redirect_delay || 5; // Mặc định 5 giây
-          setAutomationMessage(language === 'en' ?
-              'Registration complete! Redirecting to Face ID...' :
-              'Đăng ký hoàn tất! Chuyển hướng đến Face ID...');
-          setTimeout(() => {
-            nextStep(); // Chuyển sang bước tiếp theo (FaceID)
-          }, redirectDelay * 1000); // Chờ theo delay từ backend
+      if (result.status === 'success') {
+        if (formData.customerType === 'new' && result.final_action === 'redirect_faceid') {
+          setProcessMessage(result.message || (language === 'en' ? 'Registration successful! Redirecting to Face ID setup...' : 'Đăng ký thành công! Đang chuyển đến cài đặt Face ID...'));
+          const delay = (result.redirect_delay || 3) * 1000; // Mặc định 3 giây
+          if (!hasNavigatedRef.current) {
+            hasNavigatedRef.current = true;
+            setTimeout(() => nextStep(), delay);
+          }
+        } else if (formData.customerType === 'returning' && result.final_action === 'return_home') {
+          const delay = result.redirect_delay || 5; // Mặc định 5 giây
+          setProcessMessage(result.message || (language === 'en' ? `Renewal successful! Returning to home screen in ${delay}s...` : `Gia hạn thành công! Quay về trang chủ sau ${delay} giây...`));
+          setCountdown(delay); // Bắt đầu đếm ngược
+        } else {
+          // Trường hợp success nhưng không có action cụ thể hoặc customerType không khớp
+          setProcessMessage(result.message || (language === 'en' ? 'Process completed successfully.' : 'Hoàn tất xử lý thành công.'));
+          // Có thể bạn muốn tự động về home sau một lúc ở đây
+          if (!hasNavigatedRef.current) { // Ví dụ, nếu là khách cũ nhưng backend không trả về return_home
+            hasNavigatedRef.current = true;
+            setTimeout(() => resetToIntro(), 5000);
+          }
         }
       } else {
-        // Nếu backend trả về status là 'error'
-        setErrorRegistration(language === 'en' ?
-            `Automation failed: ${automationResult.message || 'Unknown error'}` :
-            `Tự động hóa thất bại: ${automationResult.message || 'Lỗi không xác định'}`);
-        setAutomationMessage(''); // Xóa thông báo tự động hóa nếu có lỗi
+        // result.status === 'error' hoặc các trạng thái lỗi khác từ backend
+        setProcessMessage(result.message || (language === 'en' ? 'Automation process failed. Please contact support.' : 'Quá trình tự động hóa thất bại. Vui lòng liên hệ hỗ trợ.'));
       }
-
-    } catch (err: any) {
-      // Bắt các lỗi xảy ra trong quá trình fetch (ví dụ: "Failed to fetch")
-      console.error('Error during automation process:', err);
-      setLoadingRegistration(false); // Tắt loading
-      setAutomationComplete(false); // Đánh dấu không hoàn thành
-      setErrorRegistration(language === 'en' ?
-          `Registration failed: ${err.message || 'Unknown error'}` :
-          `Đăng ký thất bại: ${err.message || 'Lỗi không xác định'}`);
-      setAutomationMessage(''); // Xóa thông báo tự động hóa nếu có lỗi
+    } catch (error: any) {
+      // Lỗi từ hàm registerUser (ví dụ: Failed to fetch, hoặc lỗi ném ra từ registerUser)
+      console.error('Error in runAutomationProcess:', error);
+      setIsProcessing(false);
+      setProcessMessage(error.message || (language === 'en' ? 'An error occurred. Please try again.' : 'Đã có lỗi xảy ra. Vui lòng thử lại.'));
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, language, nextStep, resetToIntro]); // Thêm các dependencies cần thiết
+
+  // useEffect để chạy tự động hóa khi component mount
+  useEffect(() => {
+    runAutomationProcess();
+  }, [runAutomationProcess]);
+
+  // useEffect cho bộ đếm ngược về Home (chỉ khi countdown được set)
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown !== null && countdown > 0 && !hasNavigatedRef.current) {
+      setProcessMessage(language === 'en' ?
+          `Membership renewed successfully! Returning to Home in ${countdown} seconds...` :
+          `Gia hạn thành công! Quay về trang chủ sau ${countdown} giây...`);
+      timer = setInterval(() => {
+        setCountdown((prevTime) => (prevTime !== null ? prevTime - 1 : null));
+      }, 1000);
+    } else if (countdown === 0 && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
+      console.log("Countdown finished, resetting to intro screen.");
+      resetToIntro();
+    }
+    return () => clearInterval(timer);
+  }, [countdown, resetToIntro, language]);
 
   const getMembershipName = (id: string) => {
-    // Sẽ lấy tên từ formData.membershipNameFormatted thay vì hardcode
-    // Hoặc nếu không có, thì fallback về mapping hiện tại
     const membershipsMap: { [key: string]: string } = {
-      "1 day": language === "en" ? "1 Day" : "Gói 1 Ngày", // Đảm bảo khớp với ID từ MembershipScreen
+      "1 day": language === "en" ? "1 Day" : "Gói 1 Ngày",
       "1 month": language === "en" ? "1 Month" : "Gói 1 Tháng",
       "3 months": language === "en" ? "3 Months" : "Gói 3 Tháng",
       "6 months": language === "en" ? "6 Months" : "Gói 6 Tháng",
@@ -116,54 +113,56 @@ export function ConfirmationScreen({ formData, nextStep, language, resetToIntro 
   return (
       <div className="space-y-6 p-4">
         <h2 className="text-2xl font-bold text-gray-900 text-center">
-          {language === 'en' ? 'Payment Confirmation' : 'Xác nhận Thanh toán'}
+          {isProcessing ?
+              (language === 'en' ? 'Processing Your Request' : 'Đang Xử Lý Yêu Cầu') :
+              (language === 'en' ? 'Process Complete' : 'Hoàn Tất Xử Lý')}
         </h2>
 
-        {/* Hiển thị thông tin đã nhập nếu không đang loading và không có lỗi */}
-        {!loadingRegistration && !errorRegistration && (
-            <div className="bg-white p-6 rounded-lg shadow-md border border-green-200">
-              <p className="text-center text-green-700 text-xl font-semibold mb-4">
-                {language === 'en' ? 'Payment successful!' : 'Thanh toán thành công!'}
-              </p>
-              <div className="text-gray-800 space-y-2">
-                <p><strong>{language === 'en' ? 'Full Name:' : 'Họ và Tên:'}</strong> {formData.fullName}</p>
-                <p><strong>{language === 'en' ? 'Phone Number:' : 'Số điện thoại:'}</strong> {formData.phoneNumber}</p>
-                <p>
-                  <strong>{language === 'en' ? 'Service:' : 'Dịch vụ:'}</strong> {' '}
-                  {formData.service === 'gym' ? (language === 'en' ? 'Gym' : 'Gym') : (language === "en" ? 'Yoga' : 'Yoga')}
-                </p>
-                <p><strong>{language === 'en' ? 'Membership:' : 'Gói tập:'}</strong> {getMembershipName(formData.membership)}</p>
-                <p>
-                  <strong>{language === 'en' ? 'Customer Type:' : 'Loại khách hàng:'}</strong> {' '}
-                  {formData.customerType === 'returning' ? (language === 'en' ? 'Returning' : 'Cũ') : (language === 'en' ? 'New' : 'Mới')}
-                </p>
-              </div>
+        {/* Luôn hiển thị thông tin tóm tắt đơn hàng */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+          <p className="text-center text-gray-700 text-lg mb-4">
+            {language === 'en' ? 'Thank you! Here is your registration summary:' : 'Cảm ơn bạn! Đây là thông tin đăng ký của bạn:'}
+          </p>
+          <div className="text-gray-800 space-y-2">
+            <p><strong>{language === 'en' ? 'Full Name:' : 'Họ và Tên:'}</strong> {formData.fullName}</p>
+            <p><strong>{language === 'en' ? 'Phone Number:' : 'Số điện thoại:'}</strong> {formData.phoneNumber}</p>
+            <p>
+              <strong>{language === 'en' ? 'Service:' : 'Dịch vụ:'}</strong> {' '}
+              {formData.service === 'gym' ? (language === 'en' ? 'Gym' : 'Gym') : (language === "en" ? 'Yoga' : 'Yoga')}
+            </p>
+            <p><strong>{language === 'en' ? 'Membership:' : 'Gói tập:'}</strong> {getMembershipName(formData.membership)}</p>
+            <p>
+              <strong>{language === 'en' ? 'Customer Type:' : 'Loại khách hàng:'}</strong> {' '}
+              {formData.customerType === 'returning' ? (language === 'en' ? 'Returning' : 'Cũ') : (language === 'en' ? 'New' : 'Mới')}
+            </p>
+          </div>
+        </div>
+
+        {/* Hiển thị Loader và thông báo xử lý */}
+        <div className="flex flex-col items-center mt-6 text-center">
+          {isProcessing && <Loader />}
+          <p className={`mt-4 text-lg ${processMessage.includes("Lỗi") || processMessage.includes("thất bại") || processMessage.includes("Error") || processMessage.includes("failed") ? 'text-red-600' : 'text-blue-600'}`}>
+            {processMessage}
+          </p>
+        </div>
+
+        {/* Nút quay về nếu có lỗi nghiêm trọng hoặc người dùng muốn quay lại sớm */}
+        {(paymentStatus === "error_session" || paymentStatus === "error_polling" || (processMessage.includes("Lỗi") && !isProcessing)) && !hasNavigatedRef.current && (
+            <div className="text-center mt-4">
+              <button
+                  onClick={resetToIntro}
+                  className="px-6 py-2 text-white bg-red-500 rounded-md hover:bg-red-600"
+              >
+                {language === 'en' ? 'Return to Home' : 'Quay về Trang Chủ'}
+              </button>
             </div>
         )}
 
-        {/* Hiển thị Loader và Message cho toàn bộ quá trình xử lý */}
-        {(loadingRegistration || (automationMessage && !automationComplete)) && !errorRegistration && (
-            <div className="flex flex-col items-center mt-6">
-              <Loader />
-              <p className="mt-4 text-lg text-gray-700">{automationMessage}</p>
-            </div>
-        )}
-        {/* Hiển thị thông báo thành công và đếm ngược riêng nếu đã hoàn thành */}
-        {automationComplete && !errorRegistration && (
-            <div className="flex flex-col items-center mt-6">
-              <p className="text-xl font-semibold text-green-700">{automationMessage}</p>
-              {formData.customerType === 'returning' && countdownToHome !== null && (
-                  <p className="text-lg font-semibold text-blue-600 mt-2">
-                    {language === 'en' ? `Returning to Home in ${countdownToHome} seconds...` : `Quay về trang chủ sau ${countdownToHome} giây...`}
-                  </p>
-              )}
-            </div>
-        )}
-
-        {/* Hiển thị lỗi nếu có */}
-        {errorRegistration && (
-            <div className="text-red-600 text-center text-lg">{errorRegistration}</div>
-        )}
+        <div className="mt-8">
+          <Slogan message={language === "en" ? "Your health journey continues!" : "Hành trình sức khỏe của bạn tiếp tục!"} language={language} />
+        </div>
       </div>
   );
 }
+
+// export default ConfirmationScreen; // Bỏ comment nếu là file riêng

@@ -29,12 +29,10 @@ def run_automation(phone, customer_type):
     chrome_options.add_argument("--window-size=1920,1080")
 
     # Tạo thư mục tạm để lưu trữ profile
-    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
-    driver = None
+    driver = webdriver.Chrome(options=chrome_options)
     result = None
 
     try:
-        driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.get("https://hdfitnessyoga.timesoft.vn/")
         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")

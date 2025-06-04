@@ -106,10 +106,12 @@ def sepay_webhook_listener():
 
             if int(transfer_amount) == transaction["expected_amount"]:
                 transaction["status"] = "success"
+                pending_payments_by_order_id[str(order_id_from_webhook)]["status"] = "success"
                 print(f"[app1.py] ✅ Webhook: Thanh toán THÀNH CÔNG cho đơn hàng {order_id_from_webhook}. Số tiền: {transfer_amount}")
                 return jsonify({"success": True, "message": "Xác nhận thanh toán thành công."}), 200
             else:
                 transaction["status"] = "failed_amount_mismatch"
+                pending_payments_by_order_id[str(order_id_from_webhook)]["status"] = "failed_amount_mismatch"
                 print(f"[app1.py] ⚠️ Webhook: Thanh toán THẤT BẠI cho đơn hàng {order_id_from_webhook}. Sai số tiền. Mong đợi {transaction['expected_amount']}, nhận được {transfer_amount}")
                 return jsonify({"success": True, "message": "Đã nhận, nhưng sai số tiền."}), 200
         else:

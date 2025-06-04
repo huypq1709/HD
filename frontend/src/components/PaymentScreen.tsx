@@ -1,21 +1,26 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Slogan } from "./Slogan";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { Slogan } from "./Slogan"; // Giả sử bạn có component này
+// import Loader from "./Loader"; // Nếu bạn muốn hiển thị loader
 
-// Định nghĩa lại các props cho rõ ràng
 interface PaymentScreenProps {
     formData: {
         service: string;
         membership: string;
         phoneNumber: string;
-        membershipPriceFormatted?: string;
+        // membershipPriceFormatted không còn cần thiết nếu backend tính và trả về giá
         [key: string]: any;
     };
     nextStep: () => void;
     prevStep: () => void;
     language: string;
-    resetToIntro: () => void;
-    resetFormData: () => void;
+    resetToIntro: () => void; // Hàm để quay về step 0 và reset form ở App.tsx
+    resetFormData: () => void; // Hàm để reset form data ở App.tsx
 }
+
+// Thông tin ngân hàng của bạn (có thể đặt ở file config)
+const MY_BANK_ACCOUNT = "07019218501";
+const MY_BANK_NAME_VIETQR_ID = "TPB"; // Mã VietQR ID cho TPBank
+const MY_ACCOUNT_HOLDER = "PHAM QUANG HUY";
 
 export function PaymentScreen({
                                   formData,
@@ -25,30 +30,50 @@ export function PaymentScreen({
                                   resetToIntro,
                                   resetFormData,
                               }: PaymentScreenProps) {
-    // --- STATE MANAGEMENT ---
-    const [timeLeft, setTimeLeft] = useState(120); // Đếm ngược 2 phút
-    const [paymentStatus, setPaymentStatus] = useState<string>("initializing"); // Trạng thái thanh toán: initializing, pending, success, timeout, error
+    const [timeLeft, setTimeLeft] = useState(120); // 2 phút = 120 giây
+    const [paymentStatus, setPaymentStatus] = useState<string>("initializing"); // initializing, pending, success, timeout, error_session, error_polling, failed_amount_mismatch
     const [statusMessage, setStatusMessage] = useState<string>(
         language === "en" ? "Initializing payment session..." : "Đang khởi tạo phiên thanh toán..."
     );
-    // Lưu số tiền cần thanh toán từ backend để dùng cho việc polling
-    const [expectedAmount, setExpectedAmount] = useState<number | null>(null);
+    const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+    const [paymentDetails, setPaymentDetails] = useState<{
+        orderId: string | null;
+        expectedAmount: number | null;
+        paymentMessage: string | null;
+    }>({
+        orderId: null,
+        expectedAmount: null,
+        paymentMessage: null,
+    });
 
-    // Ref để đảm bảo các hành động chỉ chạy một lần
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const hasNavigatedRef = useRef(false); // Ref để chống gọi nextStep/resetToIntro nhiều lần
+    const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const hasNavigatedRef = useRef(false); // Chống việc điều hướng/reset nhiều lần
 
-    // --- LOGIC HELPER ---
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    const displayPrice = formData.membershipPriceFormatted || "N/A";
 
-    // --- EFFECT 1: BẮT ĐẦU PHIÊN THANH TOÁN KHI COMPONENT MOUNT ---
+    const stopPolling = useCallback(() => {
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+        }
+    }, []);
+
+    const stopTimer = useCallback(() => {
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+        }
+    }, []);
+
+    // EFFECT 1: Khởi tạo phiên thanh toán và tạo mã QR khi component được mount
     useEffect(() => {
-        const startPaymentSession = async () => {
+        const initiateAndGenerateQR = async () => {
+            if (paymentDetails.orderId) return; // Chỉ chạy một lần
+
             try {
-                // Gọi API backend để tạo phiên thanh toán
-                const response = await fetch("/api/app1/start-payment-session", {
+                const response = await fetch("/api/app1/initiate-payment", { // Đảm bảo app1 là nơi xử lý
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -60,112 +85,151 @@ export function PaymentScreen({
 
                 const data = await response.json();
 
-                if (response.ok && data.status === "session_started") {
-                    console.log("Backend response (Session Started):", data);
-                    setExpectedAmount(data.expected_amount); // Lưu lại số tiền cần thanh toán
-                    setPaymentStatus("pending"); // Chuyển sang trạng thái chờ
-                    setStatusMessage(language === "en" ? "Waiting for payment..." : "Đang chờ thanh toán...");
+                if (response.ok && data.success && data.order_id && data.expected_amount && data.payment_message) {
+                    console.log("Payment session initiated:", data);
+                    setPaymentDetails({
+                        orderId: data.order_id,
+                        expectedAmount: data.expected_amount,
+                        paymentMessage: data.payment_message,
+                    });
+
+                    const qrUrl = `https://qr.sepay.vn/img?acc=${MY_BANK_ACCOUNT}&bank=${MY_BANK_NAME_VIETQR_ID}&amount=${data.expected_amount}&des=${encodeURIComponent(data.payment_message)}&template=compact2`;
+                    setQrCodeUrl(qrUrl);
+
+                    setPaymentStatus("pending");
+                    // Status message sẽ được cập nhật bởi useEffect theo dõi paymentStatus
                 } else {
-                    throw new Error(data.message || "Failed to start session.");
+                    throw new Error(data.message || (language === "en" ? "Failed to start payment session." : "Khởi tạo phiên thanh toán thất bại."));
                 }
-            } catch (error) {
-                console.error("Failed to start payment session:", error);
-                setPaymentStatus("error");
-                setStatusMessage(language === "en" ? "Error starting payment session." : "Lỗi khi bắt đầu phiên thanh toán.");
+            } catch (error: any) {
+                console.error("Error initiating payment session:", error);
+                setPaymentStatus("error_session");
+                setStatusMessage(error.message || (language === "en" ? "Error initializing. Please try again." : "Lỗi khởi tạo. Vui lòng thử lại."));
             }
         };
 
-        startPaymentSession();
-    }, [formData, language]); // Chạy một lần khi component mount
+        initiateAndGenerateQR();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Chạy một lần duy nhất
 
-    // --- EFFECT 2: BẮT ĐẦU POLLING KHI CÓ PHIÊN THANH TOÁN ---
+    // EFFECT 2: Polling kiểm tra trạng thái thanh toán
     useEffect(() => {
-        // Chỉ bắt đầu polling khi có expectedAmount và trạng thái đang là pending
-        if (expectedAmount !== null && paymentStatus === "pending") {
+        if (paymentDetails.orderId && paymentStatus === "pending" && !hasNavigatedRef.current) {
+            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current); // Xóa interval cũ nếu có
+
             pollingIntervalRef.current = setInterval(async () => {
                 try {
-                    // Gọi API kiểm tra trạng thái định kỳ mỗi 2 giây
-                    const response = await fetch(`/api/app1/check-payment-status?expected_amount=${expectedAmount}`);
+                    const response = await fetch(`/api/app1/check-payment-status?order_id=${paymentDetails.orderId}`);
                     const result = await response.json();
-                    console.log("Polling for status:", result);
+                    console.log("Polling result:", result);
 
-                    // Nếu trạng thái không còn là "pending", cập nhật state và dừng polling
-                    if (result.status !== "pending" && result.status !== "not_found") {
-                        setPaymentStatus(result.status); // Cập nhật trạng thái cuối cùng (success, timeout, fail_amount_mismatch)
+                    if (result.success && result.status && result.status !== "pending" && result.status !== "not_found") {
+                        setPaymentStatus(result.status); // success, failed_amount_mismatch, timeout (từ backend)
+                        stopPolling(); // Dừng polling khi có kết quả cuối cùng
+                        stopTimer();   // Dừng cả timer đếm ngược
+                    } else if (result.status === "not_found") {
+                        // Nếu backend báo not_found (ví dụ do orderId sai hoặc đã bị xóa vì quá hạn từ lâu)
+                        setPaymentStatus("error_polling");
+                        setStatusMessage(language === "en" ? "Payment session not found. Please restart." : "Không tìm thấy phiên thanh toán. Vui lòng bắt đầu lại.");
+                        stopPolling();
+                        stopTimer();
                     }
                 } catch (error) {
-                    console.error("Polling failed:", error);
-                    // Có thể tạm dừng polling nếu có lỗi mạng
+                    console.error("Polling error:", error);
+                    // Không setPaymentStatus("error") ngay để tránh dừng polling quá sớm do lỗi mạng tạm thời
+                    // Có thể thêm logic đếm số lần lỗi polling liên tiếp
                 }
-            }, 1000); // Polling mỗi 2 giây
+            }, 3000); // Polling mỗi 3 giây
         }
 
-        // Cleanup: Dọn dẹp interval khi component unmount hoặc khi trạng thái thay đổi
         return () => {
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-            }
+            stopPolling();
         };
-    }, [expectedAmount, paymentStatus, language]); // Phụ thuộc vào các giá trị này
+    }, [paymentDetails.orderId, paymentStatus, language, stopPolling, stopTimer]);
 
-    // --- EFFECT 3: XỬ LÝ KHI TRẠNG THÁI THANH TOÁN THAY ĐỔI ---
+    // EFFECT 3: Bộ đếm ngược và xử lý timeout từ phía UI
     useEffect(() => {
-        if (hasNavigatedRef.current) return; // Nếu đã điều hướng thì không làm gì nữa
-
-        // Dừng polling ngay lập tức nếu trạng thái không còn là pending
-        if (paymentStatus !== 'pending' && pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-        }
-
-        if (paymentStatus === "success") {
-            hasNavigatedRef.current = true;
-            setStatusMessage(language === "en" ? "Payment successful! Redirecting..." : "Thanh toán thành công! Đang chuyển hướng...");
-            setTimeout(() => {
-                nextStep(); // Chuyển đến màn hình xác nhận
-            }, 1500); // Chờ 1.5 giây để người dùng đọc thông báo
-        } else if (paymentStatus === "fail_amount_mismatch") {
-            setStatusMessage(language === "en" ? "Payment failed: Amount mismatch." : "Thanh toán thất bại: Sai số tiền.");
-        } else if (paymentStatus === "timeout") {
-            setStatusMessage(language === "en" ? "Payment timed out. Please try again." : "Hết thời gian thanh toán. Vui lòng thử lại.");
-            // Bộ đếm thời gian sẽ xử lý việc quay về trang chủ
-        }
-    }, [paymentStatus, language, nextStep]);
-
-
-    // --- EFFECT 4: BỘ ĐẾM NGƯỢC THỜI GIAN ---
-    useEffect(() => {
-        if (timeLeft === 0 && paymentStatus === 'pending') {
-            if (!hasNavigatedRef.current) {
-                hasNavigatedRef.current = true;
-                setStatusMessage(language === "en" ? "Time expired. Returning to home..." : "Hết thời gian. Đang quay về trang chủ...");
-                resetFormData();
-                localStorage.removeItem("phoneNumber");
-                setTimeout(() => {
-                    resetToIntro();
-                }, 2000);
+        if (paymentStatus === 'pending' && !hasNavigatedRef.current) {
+            if (timeLeft === 0) {
+                stopTimer();
+                setPaymentStatus("timeout_ui"); // Đặt một trạng thái timeout riêng của UI
+                return;
             }
-            return;
+            timerIntervalRef.current = setInterval(() => {
+                setTimeLeft((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
+            }, 1000);
+        } else {
+            stopTimer(); // Dừng timer nếu không còn pending hoặc đã navigate
         }
+        return () => {
+            stopTimer();
+        };
+    }, [timeLeft, paymentStatus, stopTimer]);
 
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-        }, 1000);
+    // EFFECT 4: Xử lý thay đổi trạng thái thanh toán (để cập nhật UI và điều hướng)
+    useEffect(() => {
+        if (hasNavigatedRef.current) return;
 
-        return () => clearInterval(timer);
-    }, [timeLeft, resetFormData, resetToIntro, language, paymentStatus]);
+        switch (paymentStatus) {
+            case "initializing":
+                setStatusMessage(language === "en" ? "Initializing payment session..." : "Đang khởi tạo phiên thanh toán...");
+                break;
+            case "pending":
+                setStatusMessage(language === "en" ? "Scan QR to pay. Waiting for payment..." : "Quét mã QR. Đang chờ thanh toán...");
+                break;
+            case "success":
+                stopPolling(); stopTimer();
+                hasNavigatedRef.current = true;
+                setStatusMessage(language === "en" ? "Payment successful! Redirecting..." : "Thanh toán thành công! Đang chuyển hướng...");
+                setTimeout(() => {
+                    nextStep(); // Chuyển đến màn hình xác nhận
+                }, 2000);
+                break;
+            case "failed_amount_mismatch":
+                stopPolling(); stopTimer();
+                setStatusMessage(language === "en" ? "Payment failed: Amount mismatch. Contact support." : "Thanh toán thất bại: Sai số tiền. Vui lòng liên hệ hỗ trợ.");
+                break;
+            case "timeout": // Timeout từ backend (webhook hoặc check-status)
+            case "timeout_ui": // Timeout từ bộ đếm ngược của UI
+                stopPolling(); stopTimer();
+                if (!hasNavigatedRef.current) {
+                    hasNavigatedRef.current = true;
+                    setStatusMessage(language === "en" ? "Payment timed out. Returning to home..." : "Hết thời gian thanh toán. Đang quay về trang chủ...");
+                    resetFormData();
+                    // localStorage.removeItem("phoneNumber"); // Nếu bạn có lưu
+                    setTimeout(() => {
+                        resetToIntro();
+                    }, 3000);
+                }
+                break;
+            case "error_session":
+            case "error_polling":
+                // statusMessage đã được set khi lỗi xảy ra
+                stopPolling(); stopTimer();
+                // Có thể thêm nút thử lại hoặc tự động quay về sau một lúc
+                break;
+            default:
+                break;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentStatus, language, nextStep, resetToIntro, resetFormData]); // Không thêm statusMessage vào đây để tránh vòng lặp
 
 
-    // --- RENDER COMPONENT ---
     const getMembershipNameDisplay = (membershipId: string, lang: string) => {
         const names: { [key: string]: { en: string; vi: string } } = {
             "1 day": { en: "1 Day Pass", vi: "Gói 1 Ngày" },
             "1 month": { en: "1 Month Pass", vi: "Gói 1 Tháng" },
-            // thêm các gói khác...
+            // Thêm các gói khác của bạn ở đây
         };
         return names[membershipId]?.[lang as "en" | "vi"] || membershipId;
     };
 
     const cleanServiceName = (rawService: string) => rawService.replace(/\s*\(.*?\)/g, "").trim();
+
+    const formatCurrency = (amount: number | null) => {
+        if (amount === null || amount === undefined) return language === "en" ? "Calculating..." : "Đang tính...";
+        return amount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    };
 
     return (
         <div className="space-y-6">
@@ -179,26 +243,47 @@ export function PaymentScreen({
                     <span className="text-gray-600">
                         {cleanServiceName(formData.service)} - {getMembershipNameDisplay(formData.membership, language)}
                     </span>
-                    <span className="font-semibold">{displayPrice}</span>
+                    <span className="font-semibold">{formatCurrency(paymentDetails.expectedAmount)}</span>
                 </div>
             </div>
 
-            <div className="flex space-x-4">
-                <div className="w-1/2 text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
-                    <h3 className="text-2xl font-semibold text-gray-800">{language === "en" ? "Payment in" : "Thanh toán trong"}</h3>
-                    <p className="mt-2 text-6xl font-bold text-red-500">{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</p>
-                    {/* Hiển thị thông báo trạng thái */}
+            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                <div className="w-full md:w-1/2 text-center p-6 border-2 border-dashed border-gray-300 rounded-lg flex flex-col justify-between min-h-[200px]">
+                    <div>
+                        <h3 className="text-2xl font-semibold text-gray-800">
+                            {paymentStatus === 'pending' ?
+                                (language === "en" ? "Payment in" : "Thanh toán trong") :
+                                (language === "en" ? "Payment Status" : "Trạng thái TT")}
+                        </h3>
+                        {paymentStatus === 'pending' && (
+                            <p className="mt-2 text-6xl font-bold text-red-500">
+                                {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+                            </p>
+                        )}
+                    </div>
                     <p className="mt-4 text-lg font-medium text-blue-600 h-10">{statusMessage}</p>
                 </div>
 
-                <div className="w-1/2 text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
-                    <img src="/qr.jpg" alt="QR Code" className="h-48 w-48 mx-auto object-contain" />
-                    <p className="mt-4 text-gray-600">
+                <div className="w-full md:w-1/2 text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
+                    {qrCodeUrl ? (
+                        <img src={qrCodeUrl} alt="QR Code SePay" className="h-48 w-48 mx-auto object-contain" />
+                    ) : (
+                        <p>{language === "en" ? "Generating QR Code..." : "Đang tạo mã QR..."}</p>
+                    )}
+                    <p className="mt-4 text-sm text-gray-600 leading-tight">
                         {language === "en" ? "Scan QR to pay" : "Quét mã QR để thanh toán"}
                         <br />
-                        <b>CAO THI HOA</b>
+                        {language === "en" ? "Account Holder: " : "Chủ tài khoản: "}<b>{MY_ACCOUNT_HOLDER}</b>
                         <br />
-                        <b>0288639397979</b>
+                        {language === "en" ? "Bank: " : "Ngân hàng: "}<b>TPBank</b>
+                        <br />
+                        {language === "en" ? "Account No.: " : "Số tài khoản: "}<b>{MY_BANK_ACCOUNT}</b>
+                        <br />
+                        {paymentDetails.paymentMessage && (
+                            <>
+                                {language === "en" ? "Content: " : "Nội dung: "}<b>{paymentDetails.paymentMessage}</b>
+                            </>
+                        )}
                     </p>
                 </div>
             </div>
@@ -206,8 +291,8 @@ export function PaymentScreen({
             <div className="flex justify-start pt-4">
                 <button
                     onClick={prevStep}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
-                    disabled={paymentStatus !== 'initializing' && paymentStatus !== 'pending'} // Vô hiệu hóa nút khi đang xử lý
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                    disabled={paymentStatus !== 'initializing' && paymentStatus !== 'pending'}
                 >
                     {language === "en" ? "Back" : "Quay lại"}
                 </button>
@@ -218,4 +303,4 @@ export function PaymentScreen({
     );
 }
 
-export default PaymentScreen;
+// export default PaymentScreen; // Bỏ comment dòng này nếu đây là file riêng

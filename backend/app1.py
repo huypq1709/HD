@@ -1,4 +1,4 @@
-# File: backend/app1.py (ĐÃ SỬA LẠI ROUTE CHO ĐÚNG VỚI NGINX)
+# File: backend/app1.py (Cập nhật logic order_id và payment_message)
 import time
 import os
 from flask import Flask, jsonify, request
@@ -13,9 +13,6 @@ print("DEBUG: app1.py - Flask app created and CORS enabled.")
 pending_payments_by_order_id = {}
 PAYMENT_TIMEOUT_SECONDS = 180
 
-# Endpoint để frontend gọi đến khởi tạo phiên thanh toán
-# Frontend gọi: /api/app1/initiate-payment
-# Nginx chuyển đến app1.py với path: /initiate-payment
 @app.route('/initiate-payment', methods=['POST'])
 def initiate_payment_session():
     print("[app1.py] Received request for /initiate-payment")
@@ -33,7 +30,7 @@ def initiate_payment_session():
 
     expected_amount = 0
     if membership_type == "1 day":
-        expected_amount = 10000
+        expected_amount = 10000 # Giả sử bạn đã sửa giá ở đây
     elif membership_type == "1 month":
         expected_amount = 50000
     else:
@@ -44,7 +41,10 @@ def initiate_payment_session():
         print(f"[app1.py] Error: Calculated amount is not positive: {expected_amount}")
         return jsonify({"success": False, "message": "Không thể xác định số tiền thanh toán."}), 400
 
-    order_id = f"HD_{int(time.time())}_{os.urandom(3).hex().upper()}"
+    timestamp_part = str(int(time.time()))
+    random_part = os.urandom(3).hex().upper()
+    # order_id giờ bao gồm "TT "
+    order_id = f"TT HD{timestamp_part}{random_part}"
 
     pending_payments_by_order_id[order_id] = {
         "expected_amount": expected_amount,
@@ -53,7 +53,8 @@ def initiate_payment_session():
         "service_info": {"service": service_type, "membership": membership_type}
     }
     print(f"[app1.py] Initiated payment session: ID {order_id}, Amount: {expected_amount}")
-    payment_message = f"TT {order_id}"
+
+    payment_message = order_id # payment_message chính là order_id
 
     return jsonify({
         "success": True,
@@ -62,9 +63,6 @@ def initiate_payment_session():
         "payment_message": payment_message
     }), 201
 
-# Endpoint Webhook mà SePay sẽ gọi đến
-# SePay gọi: /api/app1/webhook/sepay (Theo Hướng 1 bạn chọn)
-# Nginx chuyển đến app1.py với path: /webhook/sepay
 @app.route('/webhook/sepay', methods=['POST'])
 def sepay_webhook_listener():
     sepay_data = request.get_json()
@@ -76,44 +74,44 @@ def sepay_webhook_listener():
         return jsonify({"success": True, "message": "Empty data."}), 200
 
     transfer_amount = sepay_data.get("transferAmount")
-    order_id_from_webhook = sepay_data.get("referenceCode") # Giả sử SePay dùng referenceCode
 
-    if order_id_from_webhook is None: # Thử trích xuất từ description nếu referenceCode không có
-        description = str(sepay_data.get("description", "") + " " + sepay_data.get("content", "")).strip()
-        if description.startswith("TT HD_"):
-            try:
-                order_id_from_webhook = description.split("TT ")[1].split(" ")[0]
-                print(f"[app1.py] Webhook: Trích xuất order_id từ description: {order_id_from_webhook}")
-            except IndexError:
-                print(f"[app1.py] Webhook: Không thể trích xuất order_id từ description: '{description}'")
-        else:
-            print(f"[app1.py] Webhook: Không tìm thấy 'referenceCode' và description không khớp format 'TT HD_...'")
+    order_id_from_webhook = None
+    content_from_webhook = str(sepay_data.get("content", "")).strip()
 
+    print(f"[app1.py] Webhook: Received content from SePay: '{content_from_webhook}'")
+
+    if content_from_webhook.startswith("TT HD"):
+        order_id_from_webhook = content_from_webhook
+        print(f"[app1.py] Webhook: Using 'content' directly as order_id: {order_id_from_webhook}")
+    else:
+        print(f"[app1.py] Webhook: 'content' ('{content_from_webhook}') không khớp format 'TT HD...' mong đợi. Thử kiểm tra 'referenceCode'.")
+        raw_reference_code = sepay_data.get("referenceCode")
+        if raw_reference_code and str(raw_reference_code).strip().startswith("TT HD"):
+            order_id_from_webhook = str(raw_reference_code).strip()
+            print(f"[app1.py] Webhook: Lấy order_id từ 'referenceCode' làm fallback: {order_id_from_webhook}")
 
     if transfer_amount is None or not order_id_from_webhook:
-        print("[app1.py] Lỗi Webhook: Thiếu transferAmount hoặc không xác định được order_id.")
-        return jsonify({"success": True, "message": "Đã nhận webhook nhưng thiếu thông tin quan trọng."}), 200
+        print(f"[app1.py] Lỗi Webhook: Thiếu transferAmount ({transfer_amount}) hoặc không xác định được order_id ({order_id_from_webhook}).")
+        return jsonify({"success": True, "message": "Đã nhận webhook nhưng thiếu thông tin quan trọng hoặc format không đúng."}), 200
 
-    transaction = pending_payments_by_order_id.get(str(order_id_from_webhook))
+    transaction = pending_payments_by_order_id.get(order_id_from_webhook)
 
     if transaction:
         if transaction["status"] == "pending":
             elapsed_time = time.time() - transaction["created_at"]
             if elapsed_time > PAYMENT_TIMEOUT_SECONDS:
-                transaction["status"] = "timeout"
+                pending_payments_by_order_id[order_id_from_webhook]["status"] = "timeout"
                 print(f"[app1.py] Webhook: Giao dịch {order_id_from_webhook} đã QUÁ HẠN.")
                 return jsonify({"success": True, "message": "Giao dịch đã quá hạn."}), 200
 
             if int(transfer_amount) == transaction["expected_amount"]:
-                transaction["status"] = "success"
-                pending_payments_by_order_id[str(order_id_from_webhook)]["status"] = "success"
+                pending_payments_by_order_id[order_id_from_webhook]["status"] = "success"
                 print(f"[app1.py] ✅ Webhook: Thanh toán THÀNH CÔNG cho đơn hàng {order_id_from_webhook}. Số tiền: {transfer_amount}")
                 return jsonify({"success": True, "message": "Xác nhận thanh toán thành công."}), 200
             else:
-                transaction["status"] = "failed_amount_mismatch"
-                pending_payments_by_order_id[str(order_id_from_webhook)]["status"] = "failed_amount_mismatch"
-                print(f"[app1.py] ⚠️ Webhook: Thanh toán THẤT BẠI cho đơn hàng {order_id_from_webhook}. Sai số tiền. Mong đợi {transaction['expected_amount']}, nhận được {transfer_amount}")
-                return jsonify({"success": True, "message": "Đã nhận, nhưng sai số tiền."}), 200
+                pending_payments_by_order_id[order_id_from_webhook]["status"] = "failed_amount_mismatch"
+                print(f"[app1.py] ⚠️ Webhook: Thanh toán THẤT BẠI cho đơn hàng {order_id_from_webhook}: Sai số tiền. Mong đợi {transaction['expected_amount']}, nhận được {transfer_amount}")
+                return jsonify({"success": True, "message": "Đã nhận, sai số tiền."}), 200
         else:
             print(f"[app1.py] Webhook: Nhận được cho đơn hàng {order_id_from_webhook} đã được xử lý trước đó. Trạng thái: {transaction['status']}")
             return jsonify({"success": True, "message": "Giao dịch đã được xử lý trước đó."}), 200
@@ -121,9 +119,6 @@ def sepay_webhook_listener():
         print(f"[app1.py] Webhook: Không tìm thấy giao dịch nào đang chờ cho order_id: {order_id_from_webhook}")
         return jsonify({"success": True, "message": "Không tìm thấy giao dịch chờ khớp."}), 200
 
-# Endpoint để frontend kiểm tra trạng thái thanh toán (polling)
-# Frontend gọi: /api/app1/check-payment-status
-# Nginx chuyển đến app1.py với path: /check-payment-status
 @app.route('/check-payment-status', methods=['GET'])
 def check_payment():
     order_id = request.args.get('order_id')
@@ -140,7 +135,7 @@ def check_payment():
         return jsonify({"success": True, "status": "not_found", "message": "Không tìm thấy phiên thanh toán."}), 200
 
     if transaction["status"] == "pending" and (time.time() - transaction["created_at"] > PAYMENT_TIMEOUT_SECONDS):
-        transaction["status"] = "timeout"
+        pending_payments_by_order_id[str(order_id)]["status"] = "timeout" # Cập nhật trạng thái
         print(f"[app1.py] Kiểm tra trạng thái: Giao dịch {order_id} đã QUÁ HẠN.")
 
     print(f"[app1.py] Trạng thái cho {order_id}: {transaction['status']}")

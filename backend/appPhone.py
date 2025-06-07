@@ -27,34 +27,39 @@ def run_automation(phone, customer_type):
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
+    # Tối ưu: tắt tải ảnh, font, stylesheet
+    prefs = {
+        "profile.managed_default_content_settings.images": 2,
+        "profile.managed_default_content_settings.fonts": 2,
+        "profile.managed_default_content_settings.stylesheets": 2,
+        # "profile.managed_default_content_settings.javascript": 2,  # Bật nếu KHÔNG cần JS
+    }
+    chrome_options.add_experimental_option("prefs", prefs)
 
-    # Tạo thư mục tạm để lưu trữ profile
     driver = webdriver.Chrome(options=chrome_options)
     result = None
 
     try:
         driver.get("https://hdfitnessyoga.timesoft.vn/")
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
-        WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
 
-        time.sleep(5)
-
-        radio_all = WebDriverWait(driver, 5).until(
+        # Đợi radio_all xuất hiện và click
+        radio_all = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "radio_0"))
         )
         radio_all.click()
-        time.sleep(1)
 
-        search_input = WebDriverWait(driver, 5).until(
+        # Đợi input search xuất hiện
+        search_input = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
         )
         search_input.clear()
         search_input.send_keys(phone)
         search_input.send_keys(Keys.ENTER)
 
-        time.sleep(1)
-
+        # Đợi kết quả xuất hiện hoặc thông báo không tìm thấy
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH,

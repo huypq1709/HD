@@ -27,9 +27,15 @@ def _initialize_driver():
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-
+    # Tối ưu: tắt tải ảnh, font, stylesheet (và JS nếu không cần)
+    prefs = {
+        "profile.managed_default_content_settings.images": 2,
+        "profile.managed_default_content_settings.fonts": 2,
+        "profile.managed_default_content_settings.stylesheets": 2,
+        # "profile.managed_default_content_settings.javascript": 2,  # Bật nếu KHÔNG cần JS
+    }
+    chrome_options.add_experimental_option("prefs", prefs)
     try:
-        # Sử dụng ChromeService với đường dẫn tương đối
         service = ChromeService()
         driver = webdriver.Chrome(service=service, options=chrome_options)
         return driver
@@ -41,10 +47,11 @@ def _login_to_timesoft(driver: webdriver.Chrome):
     """Thực hiện các bước đăng nhập vào Timesoft."""
     try:
         driver.get("https://hdfitnessyoga.timesoft.vn/")
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
-        WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
-        time.sleep(5)
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
+        # Đợi trang chính xuất hiện (ví dụ: kiểm tra một phần tử đặc trưng sau đăng nhập)
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "radio_0")))
         return True
     except TimeoutException:
         return False

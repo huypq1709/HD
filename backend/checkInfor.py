@@ -26,71 +26,65 @@ def process_check_phone_task(task_id, phone_number):
     """Hàm xử lý việc kiểm tra thông tin trong background thread"""
     try:
         task_status[task_id] = "processing"
-        
         chrome_options = Options()
         chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--window-size=1920,1080")
-
+        # Tối ưu: tắt tải ảnh, font, stylesheet
+        prefs = {
+            "profile.managed_default_content_settings.images": 2,
+            "profile.managed_default_content_settings.fonts": 2,
+            "profile.managed_default_content_settings.stylesheets": 2,
+            # "profile.managed_default_content_settings.javascript": 2,  # Bật nếu KHÔNG cần JS
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
         service = ChromeService(executable_path='/usr/local/bin/chromedriver')
         driver = None
-        
         try:
             driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.get("https://hdfitnessyoga.timesoft.vn/")
-
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
-            WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
-            WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
-
-            time.sleep(5)
-
-            radio_all = WebDriverWait(driver, 3).until(
+            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
+            WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
+            # Đợi radio_all xuất hiện và click
+            radio_all = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.ID, "radio_0"))
             )
             radio_all.click()
-            time.sleep(0.5)
-
-            search_input = WebDriverWait(driver, 3).until(
+            # Đợi input search xuất hiện
+            search_input = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
             )
             search_input.clear()
             search_input.send_keys(phone_number)
             search_input.send_keys(Keys.ENTER)
-
-            time.sleep(0.5)
-
+            # Đợi bảng kết quả xuất hiện
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "tbody.show-table-ready"))
+            )
             html_content = driver.page_source
             soup = BeautifulSoup(html_content, "html.parser")
-
             table_body = soup.find("tbody", class_="show-table-ready")
             rows = table_body.find_all("tr") if table_body else []
-
             data_list = []
-
             for row in rows:
                 cols = row.find_all("td")
                 if len(cols) < 7:
                     continue
-
                 name_elem = cols[0].find("span", class_="ng-binding")
                 name = name_elem.text.strip() if name_elem else ""
                 phone_text = cols[2].text.strip()
                 service_text = cols[3].text.strip()
-                
                 remaining = ""
                 span_list = cols[5].find_all("span")
                 if span_list:
                     remaining = span_list[0].text.strip()
-
                 start_date = cols[6].text.strip()
                 end_date = cols[7].text.strip()
-
                 status_span = row.find("span", class_=lambda value: value and "status-" in value)
                 status = status_span.text.strip() if status_span else ""
-
                 data_list.append({
                     "name": name,
                     "phone": phone_text,
@@ -100,19 +94,15 @@ def process_check_phone_task(task_id, phone_number):
                     "end_date": end_date,
                     "status": status
                 })
-
             task_results[task_id] = {"results": data_list}
             task_status[task_id] = "completed"
-            
         except Exception as e:
             error_message = f"Error in check_phone: {type(e).__name__} - {str(e)}"
             task_results[task_id] = {"error": error_message}
             task_status[task_id] = "error"
-            
         finally:
             if driver:
                 driver.quit()
-                
     except Exception as e:
         task_results[task_id] = {"error": str(e)}
         task_status[task_id] = "error"

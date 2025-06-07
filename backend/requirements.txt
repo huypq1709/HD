@@ -16,3 +16,12 @@ pyperclip   # <-- THÊM DÒNG NÀY VÀO
 # ví dụ:
 # numpy
 # opencv-python
+
+Flask
+flask-cors
+google-generativeai
+chromadb
+langchain
+langchain-community
+langdetect
+python-dotenv

@@ -4,7 +4,7 @@ from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # --- Cấu hình ---
-KNOWLEDGE_DIR = "knowledge_data"
+KNOWLEDGE_DIR = "data"
 PERSIST_DIR = "db"
 COLLECTION_NAME = "customer_service_qa"
 

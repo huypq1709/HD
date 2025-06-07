@@ -13,6 +13,48 @@ print("DEBUG: app1.py - Flask app created and CORS enabled.")
 pending_payments_by_order_id = {}
 PAYMENT_TIMEOUT_SECONDS = 180
 
+def calculate_membership_price(membership_type, customer_type=None):
+    if membership_type == "1 day":
+        return 60000
+    BASE_MONTHLY_PRICE_VND = 600000
+    DURATION_IN_MONTHS = {
+        "1 month": 1,
+        "3 months": 3,
+        "6 months": 6,
+        "1 year": 12,
+    }
+    STANDARD_DURATION_DISCOUNTS = {
+        "1 month": 0,
+        "3 months": 0.10,
+        "6 months": 0.15,
+        "1 year": 0.20,
+    }
+    PROMO_DISCOUNTS_OLD_CUSTOMER = {
+        "1 month": 0.05,
+        "3 months": 0.10,
+        "6 months": 0.15,
+        "1 year": 0.15,
+    }
+    PROMO_DISCOUNTS_NEW_CUSTOMER = {
+        "1 month": 0.10,
+        "3 months": 0.15,
+        "6 months": 0.25,
+        "1 year": 0.30,
+    }
+    months = DURATION_IN_MONTHS.get(membership_type)
+    if not months:
+        return 0
+    total_gross = BASE_MONTHLY_PRICE_VND * months
+    standard_discount = STANDARD_DURATION_DISCOUNTS.get(membership_type, 0)
+    price_after_standard = total_gross * (1 - standard_discount)
+    promo_discount = 0
+    if customer_type == "returning":
+        promo_discount = PROMO_DISCOUNTS_OLD_CUSTOMER.get(membership_type, 0)
+    elif customer_type == "new":
+        promo_discount = PROMO_DISCOUNTS_NEW_CUSTOMER.get(membership_type, 0)
+    final_price = price_after_standard * (1 - promo_discount)
+    return round(final_price)
+
 @app.route('/initiate-payment', methods=['POST'])
 def initiate_payment_session():
     print("[app1.py] Received request for /initiate-payment")
@@ -23,20 +65,13 @@ def initiate_payment_session():
 
     service_type = data.get("service")
     membership_type = data.get("membership")
+    customer_type = data.get("customerType")
 
     if not service_type or not membership_type:
         print(f"[app1.py] Error: Missing service/membership in initiate-payment. Data: {data}")
         return jsonify({"success": False, "message": "Thiếu thông tin dịch vụ hoặc gói thành viên."}), 400
 
-    expected_amount = 0
-    if membership_type == "1 day":
-        expected_amount = 10000 # Giả sử bạn đã sửa giá ở đây
-    elif membership_type == "1 month":
-        expected_amount = 50000
-    else:
-        print(f"[app1.py] Error: Invalid membership_type: {membership_type}")
-        return jsonify({"success": False, "message": f"Gói dịch vụ '{membership_type}' không hợp lệ."}), 400
-
+    expected_amount = calculate_membership_price(membership_type, customer_type)
     if expected_amount <= 0:
         print(f"[app1.py] Error: Calculated amount is not positive: {expected_amount}")
         return jsonify({"success": False, "message": "Không thể xác định số tiền thanh toán."}), 400
@@ -50,7 +85,7 @@ def initiate_payment_session():
         "expected_amount": expected_amount,
         "status": "pending",
         "created_at": time.time(),
-        "service_info": {"service": service_type, "membership": membership_type}
+        "service_info": {"service": service_type, "membership": membership_type, "customerType": customer_type}
     }
     print(f"[app1.py] Initiated payment session: ID {order_id}, Amount: {expected_amount}")
 

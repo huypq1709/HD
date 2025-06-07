@@ -275,7 +275,7 @@ export function PaymentScreen({
                         {cleanServiceName(formData.service)} - {getMembershipNameDisplay(formData.membership, language)}
                     </span>
                     <span className="font-semibold text-blue-600">
-                        {calculateMembershipPrice(formData.membership, formData.customerType).toLocaleString("vi-VN")} VND
+                        {paymentDetails.expectedAmount ? paymentDetails.expectedAmount.toLocaleString("vi-VN") + " VND" : "..."}
                     </span>
                 </div>
             </div>

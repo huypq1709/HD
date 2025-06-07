@@ -134,8 +134,8 @@ export function FaceId({ checkUserInfo, resetToIntro, language }: FaceIdProps) {
                     <Loader />
                     <span className="mt-2 text-gray-600">
                         {language === "en"
-                            ? `Please move to camera and look straight ahead for ${verificationCountdown !== null ? verificationCountdown : '...' } seconds`
-                            : `Quý khách di chuyển sang vị trí camera và nhìn thẳng trong ${verificationCountdown !== null ? verificationCountdown : '...' } giây`}
+                            ? `Please move to the red marked area on the floor and look straight into the camera for ${verificationCountdown !== null ? verificationCountdown : '...' } seconds`
+                            : `Quý khách di chuyển sang vị trí đã được đánh dấu đỏ dưới sàn và nhìn thẳng vào camera trong ${verificationCountdown !== null ? verificationCountdown : '...' } giây`}
                     </span>
                 </div>
             )}

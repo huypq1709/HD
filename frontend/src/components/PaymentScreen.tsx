@@ -4,12 +4,13 @@ import { Slogan } from "./Slogan";
 
 interface PaymentScreenProps {
     formData: {
+        customerType: string;
+        fullName: string;
+        phoneNumber: string;
         service: string;
         membership: string;
-        phoneNumber: string;
-        customerType: string;
-        [key: string]: any;
     };
+    updateFormData: (field: string, value: any) => void;
     nextStep: () => void; // Hàm để chuyển sang ConfirmationScreen (step 7)
     prevStep: () => void;
     language: string;
@@ -76,6 +77,7 @@ const PAYMENT_UI_TIMEOUT_SECONDS = 120; // 2 phút
 
 export function PaymentScreen({
                                   formData,
+                                  updateFormData,
                                   nextStep,
                                   prevStep,
                                   language,

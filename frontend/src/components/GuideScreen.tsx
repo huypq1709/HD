@@ -89,7 +89,13 @@ export function GuideScreen({ resetToIntro, language }: GuideScreenProps) {
                             className={`w-2 h-2 rounded-full transition-all ${
                                 currentSlide === index ? "bg-white w-4" : "bg-white/50"
                             }`}
-                        />
+                            aria-label={language === "en" ? `Go to slide ${index + 1}` : `Chuyển đến trang ${index + 1}`}
+                            title={language === "en" ? `Go to slide ${index + 1}` : `Chuyển đến trang ${index + 1}`}
+                        >
+                          <span style={{position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0}}>
+                            {language === "en" ? `Go to slide ${index + 1}` : `Chuyển đến trang ${index + 1}`}
+                          </span>
+                        </button>
                     ))}
                 </div>
             </div>

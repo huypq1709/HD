@@ -12,13 +12,13 @@ interface ConfirmationScreenProps {
     membership: string;
     [key: string]: any;
   };
-  // updateFormData: (field: string, value: string) => void; // Có vẻ không dùng ở màn hình này
+  updateFormData: (field: string, value: any) => void;
   nextStep: () => void; // Chuyển sang FaceID cho khách mới
   language: string;
   resetToIntro: () => void; // Quay về màn hình giới thiệu
 }
 
-export function ConfirmationScreen({ formData, nextStep, language, resetToIntro }: ConfirmationScreenProps) {
+export function ConfirmationScreen({ formData, updateFormData, nextStep, language, resetToIntro }: ConfirmationScreenProps) {
   const [isProcessing, setIsProcessing] = useState(true); // Trạng thái chung cho việc đang xử lý
   const [processMessage, setProcessMessage] = useState<string>(''); // Thông báo cho người dùng (đang xử lý, thành công, lỗi)
   const [countdown, setCountdown] = useState<number | null>(null); // Đếm ngược về Home cho khách cũ
@@ -52,7 +52,7 @@ export function ConfirmationScreen({ formData, nextStep, language, resetToIntro 
             setTimeout(() => nextStep(), delay);
           }
         } else if (formData.customerType === 'returning' && result.final_action === 'return_home') {
-          const delay = result.redirect_delay || 5; // Mặc định 5 giây
+          const delay = result.redirect_delay || 15; // Mặc định 15 giây
           setProcessMessage(result.message || (language === 'en' ? `Renewal successful! Returning to home screen in ${delay}s...` : `Gia hạn thành công! Quay về trang chủ sau ${delay} giây...`));
           setCountdown(delay); // Bắt đầu đếm ngược
         } else {
@@ -61,7 +61,7 @@ export function ConfirmationScreen({ formData, nextStep, language, resetToIntro 
           // Có thể bạn muốn tự động về home sau một lúc ở đây
           if (!hasNavigatedRef.current) { // Ví dụ, nếu là khách cũ nhưng backend không trả về return_home
             hasNavigatedRef.current = true;
-            setTimeout(() => resetToIntro(), 5000);
+            setTimeout(() => resetToIntro(), 15000);
           }
         }
       } else {
@@ -164,7 +164,7 @@ export function ConfirmationScreen({ formData, nextStep, language, resetToIntro 
         )}
 
         <div className="mt-8">
-          <Slogan message={language === "en" ? "Your health journey continues!" : "Hành trình sức khỏe của bạn tiếp tục!"} language={language} />
+          <Slogan message={language === "en" ? "Your Wellness, Our Mission" : "Sức khỏe của bạn, sứ mệnh của chúng tôi"} language={language} />
         </div>
       </div>
   );

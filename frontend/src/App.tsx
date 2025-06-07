@@ -203,36 +203,98 @@ export function App() {
                             </div>
                         )}
                         <div className="p-6">
-                          {step === 1 && <> {console.log("App.tsx (Step 1 - CustomerTypeScreen):", formData)}  <CustomerTypeScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} /></> }
-                          {step === 10 && <CheckInfoScreen language={language} checkUserInfo={checkUserInfo} resetToIntro={resetToIntro} />}
-                          {step === 20 && <GuideScreen language={language} resetToIntro={resetToIntro} />}
-                          {step === 30 && <FaceId language={language} resetToIntro={resetToIntro} checkUserInfo={handleProcessFace} />}
-                          {step === 2 &&<> {console.log("App.tsx (Step 2 - NameScreen):", formData)}  <NameScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} /></> }
-                          {step === 3 &&<>{console.log("App.tsx (Step 2 - PhoneScreen):", formData)} <PhoneScreen
+                          {step === 1 && (
+                            <CustomerTypeScreen 
+                              formData={formData} 
+                              updateFormData={updateFormData} 
+                              nextStep={nextStep} 
+                              prevStep={prevStep} 
+                              language={language} 
+                            />
+                          )}
+                          {step === 10 && (
+                            <CheckInfoScreen 
+                              language={language} 
+                              checkUserInfo={checkUserInfo} 
+                              resetToIntro={resetToIntro} 
+                            />
+                          )}
+                          {step === 20 && (
+                            <GuideScreen 
+                              language={language} 
+                              resetToIntro={resetToIntro} 
+                            />
+                          )}
+                          {step === 30 && (
+                            <FaceId 
+                              language={language} 
+                              resetToIntro={resetToIntro} 
+                              checkUserInfo={handleProcessFace} 
+                            />
+                          )}
+                          {step === 2 && (
+                            <NameScreen 
+                              formData={formData} 
+                              updateFormData={updateFormData} 
+                              nextStep={nextStep} 
+                              prevStep={prevStep} 
+                              language={language} 
+                            />
+                          )}
+                          {step === 3 && (
+                            <PhoneScreen
                               formData={formData}
                               updateFormData={updateFormData}
                               nextStep={nextStep}
                               prevStep={prevStep}
                               language={language}
                               processPhoneNumber={handleProcessPhoneNumber}
-                          /></> }
-                          {step === 4 && <> {console.log("App.tsx (Step 4 - ServiceScreen):", formData)} <ServiceScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} /></> }
-                          {step === 5 && <> {console.log("App.tsx (Step 5 - MembershipScreen):", formData)} <MembershipScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} /></> }
-                          {step === 6 && <> {console.log("App.tsx (Step 6 - PaymentScreen):", formData)} <PaymentScreen formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} language={language} resetFormData={resetFormData} resetToIntro={resetToIntro} /></> }
+                            />
+                          )}
+                          {step === 4 && (
+                            <ServiceScreen 
+                              formData={formData} 
+                              updateFormData={updateFormData} 
+                              nextStep={nextStep} 
+                              prevStep={prevStep} 
+                              language={language} 
+                            />
+                          )}
+                          {step === 5 && (
+                            <MembershipScreen 
+                              formData={formData} 
+                              updateFormData={updateFormData} 
+                              nextStep={nextStep} 
+                              prevStep={prevStep} 
+                              language={language} 
+                            />
+                          )}
+                          {step === 6 && (
+                            <PaymentScreen 
+                              formData={formData} 
+                              updateFormData={updateFormData} 
+                              nextStep={nextStep} 
+                              prevStep={prevStep} 
+                              language={language} 
+                              resetFormData={resetFormData} 
+                              resetToIntro={resetToIntro} 
+                            />
+                          )}
                           {step === 7 && (
-                              <>
-                                {console.log("App.tsx (Step 7 - ConfirmationScreen):", formData)}
-                                <ConfirmationScreen
-                                    formData={formData}
-                                    updateFormData={updateFormData}
-                                    nextStep={nextStep}
-                                    language={language}
-                                    resetToIntro={resetToIntro}
-                                />
-                              </>
+                            <ConfirmationScreen
+                              formData={formData}
+                              updateFormData={updateFormData}
+                              nextStep={nextStep}
+                              language={language}
+                              resetToIntro={resetToIntro}
+                            />
                           )}
                           {step === 8 && formData.customerType === "new" && (
-                              <FaceId language={language} resetToIntro={resetToIntro} checkUserInfo={handleProcessFace} />
+                            <FaceId 
+                              language={language} 
+                              resetToIntro={resetToIntro} 
+                              checkUserInfo={handleProcessFace} 
+                            />
                           )}
                         </div>
                       </>

@@ -49,14 +49,24 @@ export function IntroScreen({ onRegister, language }: IntroScreenProps) {
           </div>
           <button
               onClick={prevSlide}
+              aria-label={language === "en" ? "Previous slide" : "Trang trước"}
+              title={language === "en" ? "Previous slide" : "Trang trước"}
               className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 hover:bg-white text-gray-800"
           >
+            <span style={{position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0}}>
+              {language === "en" ? "Previous slide" : "Trang trước"}
+            </span>
             <ChevronLeftIcon className="h-6 w-6" />
           </button>
           <button
               onClick={nextSlide}
+              aria-label={language === "en" ? "Next slide" : "Trang sau"}
+              title={language === "en" ? "Next slide" : "Trang sau"}
               className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 hover:bg-white text-gray-800"
           >
+            <span style={{position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0}}>
+              {language === "en" ? "Next slide" : "Trang sau"}
+            </span>
             <ChevronRightIcon className="h-6 w-6" />
           </button>
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">

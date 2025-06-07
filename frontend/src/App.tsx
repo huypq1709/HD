@@ -14,6 +14,7 @@ import { CheckInfoScreen } from "./components/CheckInfoScreen";
 import { GuideScreen } from "./components/GuideScreen";
 import { FaceId } from "./components/FaceId";
 import Loader from "./components/Loader";
+import ChatbotWidget from "./components/ChatbotWidget";
 
 export function App() {
   const [step, setStep] = useState(0);
@@ -301,6 +302,7 @@ export function App() {
                   )}
                 </div>
               </main>
+              <ChatbotWidget />
             </div>
           } />
           <Route path="/loader" element={<Loader />} />

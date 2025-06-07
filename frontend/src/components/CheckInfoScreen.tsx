@@ -14,7 +14,91 @@ export function CheckInfoScreen({ checkUserInfo, resetToIntro, language }: Check
     const [error, setError] = useState("");
     const [redirectCountdown, setRedirectCountdown] = useState(30);
     const [verificationCountdown, setVerificationCountdown] = useState<number | null>(null);
-    const [noRecords, setNoRecords] = useState(false); // State để theo dõi trường hợp không tìm thấy bản ghi
+    const [noRecords, setNoRecords] = useState(false);
+    const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+    const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+
+    // Hàm để kiểm tra trạng thái task
+    const checkTaskStatus = async (taskId: string) => {
+        try {
+            const response = await fetch(`/api/app3/check-task-status/${taskId}`);
+            const data = await response.json();
+
+            if (data.status === "completed") {
+                // Dừng polling
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                    setPollingInterval(null);
+                }
+                setLoading(false);
+                setInfo(data.data);
+                if (data.data.results && data.data.results.length === 0) {
+                    setNoRecords(true);
+                }
+            } else if (data.status === "error") {
+                // Dừng polling và hiển thị lỗi
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                    setPollingInterval(null);
+                }
+                setLoading(false);
+                setError(data.error || (language === "en" ? "An error occurred" : "Đã xảy ra lỗi"));
+                setNoRecords(true);
+            }
+            // Nếu status là "pending" hoặc "processing", tiếp tục polling
+        } catch (err: any) {
+            // Dừng polling nếu có lỗi
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                setPollingInterval(null);
+            }
+            setLoading(false);
+            setError(err.message);
+            setNoRecords(true);
+        }
+    };
+
+    // Cleanup polling interval khi component unmount
+    useEffect(() => {
+        return () => {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+        };
+    }, [pollingInterval]);
+
+    const handleCheck = async () => {
+        if (!/^\d{10}$/.test(phoneNumber)) {
+            setError(
+                language === "en"
+                    ? "Please enter a valid 10-digit phone number."
+                    : "Vui lòng nhập số điện thoại 10 chữ số."
+            );
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+        setNoRecords(false);
+        setInfo(null);
+
+        try {
+            // Gọi API để bắt đầu task
+            const response = await checkUserInfo(phoneNumber);
+            if (response.task_id) {
+                setCurrentTaskId(response.task_id);
+                // Bắt đầu polling mỗi 2 giây
+                const interval = setInterval(() => checkTaskStatus(response.task_id), 2000);
+                setPollingInterval(interval);
+            } else {
+                throw new Error(language === "en" ? "Failed to start task" : "Không thể bắt đầu tác vụ");
+            }
+        } catch (err: any) {
+            setLoading(false);
+            setError(err.message);
+            setNoRecords(true);
+        }
+    };
 
     useEffect(() => {
         if (loading) {
@@ -27,35 +111,6 @@ export function CheckInfoScreen({ checkUserInfo, resetToIntro, language }: Check
             setVerificationCountdown(null);
         }
     }, [loading]);
-
-
-    const handleCheck = async () => {
-        if (!/^\d{10}$/.test(phoneNumber)) {
-            setError(
-                language === "en"
-                    ? "Please enter a valid 10-digit phone number."
-                    : "Vui lòng nhập số điện thoại 10 chữ số."
-            );
-            return;
-        }
-        setLoading(true);
-        setError("");
-        setNoRecords(false); // Reset trạng thái không tìm thấy bản ghi khi bắt đầu kiểm tra
-
-        try {
-            const data = await checkUserInfo(phoneNumber);
-            setInfo(data);
-            console.log('Data from checkUserInfo:', data); // Kiểm tra dữ liệu trả về
-            if (data && data.results && data.results.length === 0) {
-                setNoRecords(true); // Cập nhật trạng thái nếu không tìm thấy bản ghi
-            }
-        } catch (err: any) {
-            setError(err.message);
-            setNoRecords(true); // Coi lỗi cũng là trường hợp không tìm thấy để redirect
-        } finally {
-            setLoading(false);
-        }
-    };
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
@@ -100,9 +155,12 @@ export function CheckInfoScreen({ checkUserInfo, resetToIntro, language }: Check
             />
             <button
                 onClick={handleCheck}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                disabled={loading}
+                className={`w-full px-4 py-2 ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded`}
             >
-                {language === "en" ? "Check" : "Kiểm Tra"}
+                {loading 
+                    ? (language === "en" ? "Checking..." : "Đang kiểm tra...")
+                    : (language === "en" ? "Check" : "Kiểm Tra")}
             </button>
             {loading && (
                 <div className="flex flex-col justify-center items-center">
@@ -156,7 +214,7 @@ export function CheckInfoScreen({ checkUserInfo, resetToIntro, language }: Check
                                                 {item.status}
     </span>
                                         ) : (
-                                            <span className="text-xs text-gray-500">{item.status}</span> // fallback nếu status khác
+                                            <span className="text-xs text-gray-500">{item.status}</span>
                                         )}
                                     </td>
                                 </tr>

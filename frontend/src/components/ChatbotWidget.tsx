@@ -27,7 +27,7 @@ const ChatbotWidget: React.FC = () => {
     setMessages([
       {
         role: 'system',
-        parts: 'Chào bạn, tôi có thể giúp gì cho bạn hôm nay? / Hello, how can I help you today?',
+        parts: 'Chào bạn, tôi có thể giúp gì cho bạn hôm nay?<br/>Hello, how can I help you today?',
       },
     ]);
   };
@@ -158,7 +158,7 @@ const ChatbotWidget: React.FC = () => {
                 setInputValue(e.target.value);
                 startTimer(); // Reset timer khi người dùng gõ
             }}
-            placeholder="Nhập câu hỏi của bạn.../ Ask me anything..."
+            placeholder="Nhập câu hỏi của bạn/ Ask me anything"
             autoComplete="off"
           />
           <button type="submit">➤</button>

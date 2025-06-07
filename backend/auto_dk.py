@@ -1,14 +1,9 @@
 # automation_app.py
 import os
-import pyperclip
-import subprocess
-import pyscreeze
-
-import pyautogui
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 import time
 import threading
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options

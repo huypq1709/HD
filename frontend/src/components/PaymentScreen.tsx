@@ -67,15 +67,28 @@ export function PaymentScreen({
             setPaymentStatus("initializing");
             const initiateAndGenerateQR = async () => {
                 try {
-                    // Chuyển đổi membership sang giá trị backend chấp nhận
-                    const membershipMap: { [key: string]: string } = {
-                        "1 year": "12 tháng",
-                        "6 months": "6 tháng",
-                        "3 months": "3 tháng",
-                        "1 month": "1 tháng",
-                        "1 day": "1 ngày"
+                    // Mapping membership cho từng loại service
+                    const membershipMap: { [service: string]: { [key: string]: string } } = {
+                        gym: {
+                            "1 year": "GYM 12 THÁNG",
+                            "6 months": "GYM 6 THÁNG",
+                            "3 months": "GYM 3 THÁNG",
+                            "1 month": "GYM 1 THÁNG",
+                            "1 day": "GYM 1 NGÀY"
+                        },
+                        yoga: {
+                            "1 year": "YOGA 12 THÁNG",
+                            "6 months": "YOGA 6 THÁNG",
+                            "3 months": "YOGA 3 THÁNG",
+                            "1 month": "YOGA 1 THÁNG"
+                        }
                     };
-                    const membershipForBackend = membershipMap[formData.membership] || formData.membership;
+                    const membershipForBackend = membershipMap[formData.service]?.[formData.membership] || formData.membership;
+                    console.log("Gửi lên backend:", {
+                        service: formData.service,
+                        membership: membershipForBackend,
+                        phoneNumber: formData.phoneNumber,
+                    });
 
                     const response = await fetch("/api/app1/initiate-payment", {
                         method: "POST",

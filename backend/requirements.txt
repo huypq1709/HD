@@ -6,19 +6,14 @@ Flask-Cors
 selenium
 beautifulsoup4
 # Browser Automation & Scraping
-selenium
+
 # GUI & Clipboard Automation (Đọc lưu ý quan trọng bên dưới)
-pyautogui
-pyscreeze
-pyperclip   # <-- THÊM DÒNG NÀY VÀO
+ # <-- THÊM DÒNG NÀY VÀO
 # ... và bất kỳ thư viện nào khác mà bạn cần ...
 # Thêm các thư viện khác của bạn ở đây, mỗi thư viện một dòng
 # ví dụ:
 # numpy
 # opencv-python
-
-Flask
-flask-cors
 google-generativeai
 chromadb
 langchain

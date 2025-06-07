@@ -120,7 +120,7 @@ export function PaymentScreen({
             initiateAndGenerateQR();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Chạy một lần khi component mount
+    }, [formData.membership, formData.service, formData.phoneNumber]); // Chạy lại khi membership/service/phone thay đổi
 
     // EFFECT 2: Polling kiểm tra trạng thái
     useEffect(() => {

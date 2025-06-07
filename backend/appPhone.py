@@ -42,11 +42,15 @@ def run_automation(phone, customer_type):
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
 
+        # Đợi trang load sau khi đăng nhập
+        time.sleep(5)
+
         # Đợi radio_all xuất hiện và click
         radio_all = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "radio_0"))
         )
         radio_all.click()
+        time.sleep(1)  # Đợi radio được chọn
 
         # Đợi input search xuất hiện
         search_input = WebDriverWait(driver, 10).until(
@@ -56,26 +60,25 @@ def run_automation(phone, customer_type):
         search_input.send_keys(phone)
         search_input.send_keys(Keys.ENTER)
 
-        # Đợi kết quả xuất hiện hoặc thông báo không tìm thấy
+        # Đợi kết quả tìm kiếm load
+        time.sleep(2)
+
+        # Kiểm tra kết quả tìm kiếm
         try:
-            WebDriverWait(driver, 10).until(
+            # Đợi tối đa 15 giây cho kết quả tìm kiếm
+            WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.XPATH,
                                                 "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']"))
             )
-            # Số điện thoại tồn tại trong hệ thống
-            if customer_type == "new":
-                result = "found"  # Giữ nguyên kết quả "found" để frontend xử lý
-            else:  # customer_type == "returning"
-                result = "found"
+            result = "found"
         except:
             try:
-                WebDriverWait(driver, 10).until(EC.visibility_of_element_located(
+                # Đợi tối đa 15 giây cho thông báo không tìm thấy
+                WebDriverWait(driver, 15).until(EC.visibility_of_element_located(
                     (By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")))
-                # Số điện thoại không tồn tại trong hệ thống
-                if customer_type == "new":
-                    result = "not_found"
-                else:  # customer_type == "returning"
-                    result = "not_found"  # Giữ nguyên kết quả "not_found" để frontend xử lý
+                # Đợi thêm 1 giây để đảm bảo thông báo đã hiển thị đầy đủ
+                time.sleep(1)
+                result = "not_found"
             except:
                 result = "error_checking"
 

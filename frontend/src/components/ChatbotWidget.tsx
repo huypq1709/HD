@@ -148,7 +148,7 @@ const ChatbotWidget: React.FC = () => {
                 setInputValue(e.target.value);
                 startTimer(); // Reset timer khi người dùng gõ
             }}
-            placeholder="Nhập câu hỏi của bạn..."
+            placeholder="Nhập câu hỏi của bạn.../ Ask me anything..."
             autoComplete="off"
           />
           <button type="submit">➤</button>

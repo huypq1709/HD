@@ -32,7 +32,6 @@ def run_automation(phone, customer_type):
         "profile.managed_default_content_settings.images": 2,
         "profile.managed_default_content_settings.fonts": 2,
         "profile.managed_default_content_settings.stylesheets": 2,
-        # "profile.managed_default_content_settings.javascript": 2,  # Bật nếu KHÔNG cần JS
     }
     chrome_options.add_experimental_option("prefs", prefs)
 
@@ -65,12 +64,20 @@ def run_automation(phone, customer_type):
                 EC.presence_of_element_located((By.XPATH,
                                                 "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']"))
             )
-            result = "found"
+            # Số điện thoại tồn tại trong hệ thống
+            if customer_type == "new":
+                result = "phone_exists"
+            else:  # customer_type == "old"
+                result = "found"
         except:
             try:
                 WebDriverWait(driver, 10).until(EC.visibility_of_element_located(
                     (By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")))
-                result = "not_found"
+                # Số điện thoại không tồn tại trong hệ thống
+                if customer_type == "new":
+                    result = "not_found"
+                else:  # customer_type == "old"
+                    result = "phone_not_exists"
             except:
                 result = "error_checking"
 
@@ -93,14 +100,24 @@ def process_phone_from_screen():
     if phone and customer_type:
         thread = Thread(target=run_automation, args=(phone, customer_type))
         thread.start()
-        return jsonify({"message": "Đang xử lý yêu cầu..."}), 202 # Sử dụng status code 202 Accepted
+        return jsonify({"message": "Đang xử lý yêu cầu..."}), 202
     else:
         return jsonify({"error": "Không tìm thấy 'phoneNumber' hoặc 'customerType' trong yêu cầu"}), 400
 
 @app.route("/check-automation-result/<phone>", methods=["GET"])
 def check_automation_result(phone):
     if phone in automation_results:
-        result = automation_results.pop(phone) # Lấy và xóa kết quả sau khi trả về
+        result = automation_results.pop(phone)  # Lấy và xóa kết quả sau khi trả về
+        if result == "phone_exists":
+            return jsonify({
+                "automation_result": "error",
+                "message": "Số điện thoại đã tồn tại trong hệ thống. Vui lòng chọn loại khách hàng là 'Khách hàng cũ'."
+            }), 200
+        elif result == "phone_not_exists":
+            return jsonify({
+                "automation_result": "error",
+                "message": "Số điện thoại không tồn tại trong hệ thống. Vui lòng chọn loại khách hàng là 'Khách hàng mới'."
+            }), 200
         return jsonify({"automation_result": result}), 200
     else:
         return jsonify({"message": "Đang xử lý hoặc không tìm thấy kết quả."}), 200

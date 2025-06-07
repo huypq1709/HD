@@ -17,6 +17,7 @@ const ChatbotWidget: React.FC = () => {
   const [isFirstMessage, setIsFirstMessage] = useState(true);
   
   const inactivityTimer = useRef<number>();
+  const autoCloseTimer = useRef<number>();
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const apiUrl = 'http://127.0.0.1:5000/chat'; // URL của backend Flask
 
@@ -40,12 +41,20 @@ const ChatbotWidget: React.FC = () => {
     }, 2000);
   };
   
-  // Bộ đếm giờ
+  // Bộ đếm giờ cho reset do không hoạt động (2 phút)
   const startTimer = () => {
     clearTimeout(inactivityTimer.current);
     inactivityTimer.current = window.setTimeout(resetChat, 2 * 60 * 1000); // 2 phút
   };
-  
+
+  // Bộ đếm giờ tự động thu gọn chat nếu không gửi câu hỏi nào (90s)
+  const startAutoCloseTimer = () => {
+    clearTimeout(autoCloseTimer.current);
+    autoCloseTimer.current = window.setTimeout(() => {
+      setIsOpen(false);
+    }, 90 * 1000); // 90 giây
+  };
+
   useEffect(() => {
     initChat(); // Khởi tạo chat lần đầu
   }, []);
@@ -59,13 +68,12 @@ const ChatbotWidget: React.FC = () => {
   
   // Quản lý bộ đếm giờ
   useEffect(() => {
-      if(isOpen) {
-          startTimer();
-      } else {
-          clearTimeout(inactivityTimer.current);
-      }
-      // Cleanup timer khi component unmount
-      return () => clearTimeout(inactivityTimer.current);
+    if (isOpen) {
+      startAutoCloseTimer();
+    } else {
+      clearTimeout(autoCloseTimer.current);
+    }
+    return () => clearTimeout(autoCloseTimer.current);
   }, [isOpen]);
 
   const handleToggleChat = () => {
@@ -86,6 +94,7 @@ const ChatbotWidget: React.FC = () => {
     setInputValue('');
     setIsLoading(true);
     clearTimeout(inactivityTimer.current); // Dừng timer khi đang chờ bot trả lời
+    clearTimeout(autoCloseTimer.current); // Dừng auto close khi đang gửi câu hỏi
 
     try {
         const historyForApi = newMessages.slice(0, -1).map(msg => ({
@@ -110,6 +119,7 @@ const ChatbotWidget: React.FC = () => {
     } finally {
         setIsLoading(false);
         startTimer(); // Khởi động lại timer sau khi bot đã trả lời
+        startAutoCloseTimer(); // Khởi động lại auto close timer
     }
   };
 

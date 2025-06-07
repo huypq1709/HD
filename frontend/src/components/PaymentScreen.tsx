@@ -103,46 +103,84 @@ export function PaymentScreen({
     useEffect(() => {
         if (paymentDetails.orderId && paymentStatus === "pending" && !hasNavigatedOrTimedOutRef.current) {
             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = setInterval(async () => {
+            
+            // Polling ngay lập tức lần đầu
+            const checkStatus = async () => {
                 try {
                     const response = await fetch(`/api/app1/check-payment-status?order_id=${paymentDetails.orderId}`);
                     const result = await response.json();
                     console.log("Polling result for order", paymentDetails.orderId, ":", result);
-                    if (result.success && result.status && result.status !== "pending" && result.status !== "not_found") {
-                        setPaymentStatus(result.status); // Cập nhật trạng thái cuối cùng
-                        // Không dừng polling ở đây, để useEffect xử lý trạng thái dừng
-                    } else if (result.status === "not_found") {
-                        setPaymentStatus("error_polling"); // Phiên không tìm thấy
+                    
+                    if (result.success) {
+                        if (result.status === "success") {
+                            setPaymentStatus("success");
+                            stopPolling();
+                            stopTimer();
+                            hasNavigatedOrTimedOutRef.current = true;
+                            setTimeout(() => {
+                                nextStep();
+                            }, 2000);
+                        } else if (result.status === "failed_amount_mismatch") {
+                            setPaymentStatus("failed_amount_mismatch");
+                            stopPolling();
+                            stopTimer();
+                        } else if (result.status === "timeout") {
+                            setPaymentStatus("timeout");
+                            stopPolling();
+                            stopTimer();
+                            hasNavigatedOrTimedOutRef.current = true;
+                            resetFormData();
+                            setTimeout(() => {
+                                resetToIntro();
+                            }, 3000);
+                        } else if (result.status === "not_found") {
+                            setPaymentStatus("error_polling");
+                            stopPolling();
+                            stopTimer();
+                        }
                     }
                 } catch (error) {
                     console.error("Polling error:", error);
-                    // Có thể thêm logic retry hoặc thông báo lỗi nếu polling thất bại nhiều lần
+                    setPaymentStatus("error_polling");
+                    stopPolling();
+                    stopTimer();
                 }
-            }, 3000);
+            };
+
+            // Chạy kiểm tra ngay lập tức
+            checkStatus();
+            
+            // Sau đó mới bắt đầu polling mỗi 2 giây
+            pollingIntervalRef.current = setInterval(checkStatus, 2000);
         }
         return () => stopPolling();
-    }, [paymentDetails.orderId, paymentStatus, stopPolling]);
+    }, [paymentDetails.orderId, paymentStatus, stopPolling, stopTimer, nextStep, resetToIntro, resetFormData]);
 
     // EFFECT 3: Bộ đếm ngược thời gian
     useEffect(() => {
         if (paymentStatus === 'pending' && !hasNavigatedOrTimedOutRef.current) {
             if (timeLeft === 0) {
                 stopTimer();
-                setPaymentStatus("timeout_ui"); // Đặt trạng thái timeout từ UI
+                setPaymentStatus("timeout_ui");
+                hasNavigatedOrTimedOutRef.current = true;
+                resetFormData();
+                setTimeout(() => {
+                    resetToIntro();
+                }, 3000);
                 return;
             }
             timerIntervalRef.current = setInterval(() => {
                 setTimeLeft((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
             }, 1000);
         } else {
-            stopTimer(); // Dừng timer nếu không còn pending hoặc đã xử lý timeout/success
+            stopTimer();
         }
         return () => stopTimer();
-    }, [timeLeft, paymentStatus, stopTimer]);
+    }, [timeLeft, paymentStatus, stopTimer, resetToIntro, resetFormData]);
 
     // EFFECT 4: Xử lý logic dựa trên thay đổi paymentStatus
     useEffect(() => {
-        if (hasNavigatedOrTimedOutRef.current) return; // Nếu đã xử lý, không làm gì nữa
+        if (hasNavigatedOrTimedOutRef.current) return;
 
         let newMessage = "";
         let shouldStopActivities = false;
@@ -157,26 +195,15 @@ export function PaymentScreen({
             case "success":
                 newMessage = language === "en" ? "Payment successful! Redirecting..." : "Thanh toán thành công! Đang chuyển hướng...";
                 shouldStopActivities = true;
-                hasNavigatedOrTimedOutRef.current = true; // Đánh dấu đã xử lý
-                setTimeout(() => {
-                    nextStep(); // Chuyển sang ConfirmationScreen
-                }, 2000);
                 break;
             case "failed_amount_mismatch":
                 newMessage = language === "en" ? "Payment failed: Amount mismatch. Contact support." : "Thanh toán thất bại: Sai số tiền. Vui lòng liên hệ hỗ trợ.";
                 shouldStopActivities = true;
                 break;
-            case "timeout_ui": // Timeout do UI đếm ngược
-            case "timeout":    // Timeout do backend thông báo (ví dụ qua polling)
+            case "timeout_ui":
+            case "timeout":
                 newMessage = language === "en" ? "Payment timed out. Returning to home..." : "Hết thời gian thanh toán. Đang quay về trang chủ...";
                 shouldStopActivities = true;
-                if (!hasNavigatedOrTimedOutRef.current) { // Đảm bảo reset và điều hướng chỉ 1 lần
-                    hasNavigatedOrTimedOutRef.current = true;
-                    resetFormData();
-                    setTimeout(() => {
-                        resetToIntro();
-                    }, 3000);
-                }
                 break;
             case "error_session":
                 newMessage = language === "en" ? "Error initializing. Please try again or go back." : "Lỗi khởi tạo phiên. Vui lòng thử lại hoặc quay lại.";
@@ -187,7 +214,6 @@ export function PaymentScreen({
                 shouldStopActivities = true;
                 break;
             default:
-                // Giữ nguyên statusMessage nếu không khớp case nào
                 return;
         }
 
@@ -197,7 +223,7 @@ export function PaymentScreen({
             stopPolling();
             stopTimer();
         }
-    }, [paymentStatus, language, nextStep, resetToIntro, resetFormData, stopPolling, stopTimer]);
+    }, [paymentStatus, language, stopPolling, stopTimer]);
 
 
     // Các hàm helper và JSX render giữ nguyên như bạn đã có

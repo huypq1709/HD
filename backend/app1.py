@@ -74,21 +74,25 @@ def sepay_webhook_listener():
         return jsonify({"success": True, "message": "Empty data."}), 200
 
     transfer_amount = sepay_data.get("transferAmount")
-
-    order_id_from_webhook = None
     content_from_webhook = str(sepay_data.get("content", "")).strip()
-
+    
     print(f"[app1.py] Webhook: Received content from SePay: '{content_from_webhook}'")
 
-    if content_from_webhook.startswith("TT HD"):
-        order_id_from_webhook = content_from_webhook
-        print(f"[app1.py] Webhook: Using 'content' directly as order_id: {order_id_from_webhook}")
-    else:
-        print(f"[app1.py] Webhook: 'content' ('{content_from_webhook}') không khớp format 'TT HD...' mong đợi. Thử kiểm tra 'referenceCode'.")
+    # Tìm order_id trong content (format: ...-TT HD...)
+    order_id_from_webhook = None
+    if "TT HD" in content_from_webhook:
+        # Tìm phần sau "TT HD" trong content
+        tt_hd_index = content_from_webhook.find("TT HD")
+        if tt_hd_index != -1:
+            order_id_from_webhook = content_from_webhook[tt_hd_index:]
+            print(f"[app1.py] Webhook: Extracted order_id from content: {order_id_from_webhook}")
+
+    if not order_id_from_webhook:
+        print(f"[app1.py] Webhook: Could not find 'TT HD' in content. Trying referenceCode...")
         raw_reference_code = sepay_data.get("referenceCode")
         if raw_reference_code and str(raw_reference_code).strip().startswith("TT HD"):
             order_id_from_webhook = str(raw_reference_code).strip()
-            print(f"[app1.py] Webhook: Lấy order_id từ 'referenceCode' làm fallback: {order_id_from_webhook}")
+            print(f"[app1.py] Webhook: Using referenceCode as order_id: {order_id_from_webhook}")
 
     if transfer_amount is None or not order_id_from_webhook:
         print(f"[app1.py] Lỗi Webhook: Thiếu transferAmount ({transfer_amount}) hoặc không xác định được order_id ({order_id_from_webhook}).")

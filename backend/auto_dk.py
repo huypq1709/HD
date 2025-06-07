@@ -20,9 +20,6 @@ from selenium.common.exceptions import TimeoutException, WebDriverException, NoS
     ElementClickInterceptedException
 
 app = Flask(__name__)
-# Cho phép CORS từ mọi origin để dễ phát triển.
-# Trong môi trường production, bạn nên giới hạn origin cụ thể:
-# CORS(app, origins=["http://localhost:3000", "http://your-frontend-domain.com"])
 CORS(app)
 
 # --- CẤU HÌNH SELENIUM ---
@@ -34,19 +31,17 @@ CORS(app)
 def _initialize_driver():
     """Khởi tạo và trả về một instance WebDriver."""
     chrome_options = Options()
-    # Các tùy chọn để chạy headless và tránh phát hiện bot
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    # chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    # chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    # chrome_options.add_experimental_option('useAutomationExtension', False)
 
+    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
+    driver = None
     try:
         # Nếu chromedriver nằm trong PATH, bạn có thể dùng driver = webdriver.Chrome(options=chrome_options)
-        driver = webdriver.Chrome(options=chrome_options)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         # Nếu bạn cần chỉ định đường dẫn:
         # driver = webdriver.Chrome(executable_path=CHROME_DRIVER_PATH, options=chrome_options)
         return driver

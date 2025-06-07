@@ -37,7 +37,6 @@ def process_check_phone_task(task_id, phone_number):
             "profile.managed_default_content_settings.images": 2,
             "profile.managed_default_content_settings.fonts": 2,
             "profile.managed_default_content_settings.stylesheets": 2,
-            # "profile.managed_default_content_settings.javascript": 2,  # Bật nếu KHÔNG cần JS
         }
         chrome_options.add_experimental_option("prefs", prefs)
         service = ChromeService(executable_path='/usr/local/bin/chromedriver')
@@ -45,14 +44,22 @@ def process_check_phone_task(task_id, phone_number):
         try:
             driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.get("https://hdfitnessyoga.timesoft.vn/")
+            
+            # Đăng nhập
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
-            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
-            WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
+            
+            # Đợi trang load sau khi đăng nhập
+            time.sleep(3)
+
             # Đợi radio_all xuất hiện và click
             radio_all = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.ID, "radio_0"))
             )
             radio_all.click()
+            time.sleep(1)  # Đợi radio được chọn
+
             # Đợi input search xuất hiện
             search_input = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
@@ -60,42 +67,62 @@ def process_check_phone_task(task_id, phone_number):
             search_input.clear()
             search_input.send_keys(phone_number)
             search_input.send_keys(Keys.ENTER)
+
+            # Đợi kết quả tìm kiếm load
+            time.sleep(1)
+
             # Đợi bảng kết quả xuất hiện
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "tbody.show-table-ready"))
-            )
-            html_content = driver.page_source
-            soup = BeautifulSoup(html_content, "html.parser")
-            table_body = soup.find("tbody", class_="show-table-ready")
-            rows = table_body.find_all("tr") if table_body else []
-            data_list = []
-            for row in rows:
-                cols = row.find_all("td")
-                if len(cols) < 7:
-                    continue
-                name_elem = cols[0].find("span", class_="ng-binding")
-                name = name_elem.text.strip() if name_elem else ""
-                phone_text = cols[2].text.strip()
-                service_text = cols[3].text.strip()
-                remaining = ""
-                span_list = cols[5].find_all("span")
-                if span_list:
-                    remaining = span_list[0].text.strip()
-                start_date = cols[6].text.strip()
-                end_date = cols[7].text.strip()
-                status_span = row.find("span", class_=lambda value: value and "status-" in value)
-                status = status_span.text.strip() if status_span else ""
-                data_list.append({
-                    "name": name,
-                    "phone": phone_text,
-                    "service": service_text,
-                    "remaining": remaining,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "status": status
-                })
-            task_results[task_id] = {"results": data_list}
-            task_status[task_id] = "completed"
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "tbody.show-table-ready"))
+                )
+                # Đợi thêm 1 giây để đảm bảo dữ liệu load đầy đủ
+                time.sleep(1)
+                
+                html_content = driver.page_source
+                soup = BeautifulSoup(html_content, "html.parser")
+                table_body = soup.find("tbody", class_="show-table-ready")
+                rows = table_body.find_all("tr") if table_body else []
+                data_list = []
+                for row in rows:
+                    cols = row.find_all("td")
+                    if len(cols) < 7:
+                        continue
+                    name_elem = cols[0].find("span", class_="ng-binding")
+                    name = name_elem.text.strip() if name_elem else ""
+                    phone_text = cols[2].text.strip()
+                    service_text = cols[3].text.strip()
+                    remaining = ""
+                    span_list = cols[5].find_all("span")
+                    if span_list:
+                        remaining = span_list[0].text.strip()
+                    start_date = cols[6].text.strip()
+                    end_date = cols[7].text.strip()
+                    status_span = row.find("span", class_=lambda value: value and "status-" in value)
+                    status = status_span.text.strip() if status_span else ""
+                    data_list.append({
+                        "name": name,
+                        "phone": phone_text,
+                        "service": service_text,
+                        "remaining": remaining,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "status": status
+                    })
+                task_results[task_id] = {"results": data_list}
+                task_status[task_id] = "completed"
+            except Exception as e:
+                # Nếu không tìm thấy bảng kết quả, kiểm tra thông báo "Không tìm thấy bản ghi nào"
+                try:
+                    WebDriverWait(driver, 10).until(EC.visibility_of_element_located(
+                        (By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")))
+                    task_results[task_id] = {"results": []}
+                    task_status[task_id] = "completed"
+                except:
+                    error_message = f"Error in check_phone: {type(e).__name__} - {str(e)}"
+                    task_results[task_id] = {"error": error_message}
+                    task_status[task_id] = "error"
+
         except Exception as e:
             error_message = f"Error in check_phone: {type(e).__name__} - {str(e)}"
             task_results[task_id] = {"error": error_message}

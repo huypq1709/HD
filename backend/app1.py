@@ -67,20 +67,20 @@ def initiate_payment_session():
     membership_type = data.get("membership")
     customer_type = data.get("customerType")
 
-    print(f"[app1.py] Nhận membership_type: {membership_type!r}")
+    print(f"[app1.py] Nhận membership_type: {membership_type!r}, customer_type: {customer_type!r}")
+    expected_amount = calculate_membership_price(membership_type, customer_type)
+    print(f"[app1.py] Tính ra expected_amount: {expected_amount}")
 
     if not service_type or not membership_type:
         print(f"[app1.py] Error: Missing service/membership in initiate-payment. Data: {data}")
         return jsonify({"success": False, "message": "Thiếu thông tin dịch vụ hoặc gói thành viên."}), 400
 
-    expected_amount = calculate_membership_price(membership_type, customer_type)
     if expected_amount <= 0:
         print(f"[app1.py] Error: Calculated amount is not positive: {expected_amount}")
         return jsonify({"success": False, "message": "Không thể xác định số tiền thanh toán."}), 400
 
     timestamp_part = str(int(time.time()))
     random_part = os.urandom(3).hex().upper()
-    # order_id giờ bao gồm "TT "
     order_id = f"TT HD{timestamp_part}{random_part}"
 
     pending_payments_by_order_id[order_id] = {
@@ -91,7 +91,7 @@ def initiate_payment_session():
     }
     print(f"[app1.py] Initiated payment session: ID {order_id}, Amount: {expected_amount}")
 
-    payment_message = order_id # payment_message chính là order_id
+    payment_message = order_id
 
     return jsonify({
         "success": True,

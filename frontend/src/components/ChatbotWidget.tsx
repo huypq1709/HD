@@ -47,11 +47,12 @@ const ChatbotWidget: React.FC = () => {
     inactivityTimer.current = window.setTimeout(resetChat, 2 * 60 * 1000); // 2 phút
   };
 
-  // Bộ đếm giờ tự động thu gọn chat nếu không gửi câu hỏi nào (90s)
+  // Bộ đếm giờ tự động reset và thu nhỏ chat nếu không gửi câu hỏi nào (90s)
   const startAutoCloseTimer = () => {
     clearTimeout(autoCloseTimer.current);
     autoCloseTimer.current = window.setTimeout(() => {
-      setIsOpen(false);
+      initChat(); // Xóa toàn bộ nội dung chat về tin nhắn chào
+      setIsOpen(false); // Thu nhỏ khung chat
     }, 90 * 1000); // 90 giây
   };
 

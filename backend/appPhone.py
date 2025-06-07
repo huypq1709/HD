@@ -9,10 +9,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 import traceback
-from selenium.webdriver.chrome.service import Service as ChromeService  # Nên dùng
+from selenium.webdriver.chrome.service import Service as ChromeService
 import time
-import tempfile  # Thêm import này cho giải pháp thư mục tạm
-import shutil  # Thêm import này để xóa thư mục tạm
 
 app = Flask(__name__)
 CORS(app)
@@ -66,8 +64,8 @@ def run_automation(phone, customer_type):
             )
             # Số điện thoại tồn tại trong hệ thống
             if customer_type == "new":
-                result = "phone_exists"
-            else:  # customer_type == "old"
+                result = "found"  # Giữ nguyên kết quả "found" để frontend xử lý
+            else:  # customer_type == "returning"
                 result = "found"
         except:
             try:
@@ -76,8 +74,8 @@ def run_automation(phone, customer_type):
                 # Số điện thoại không tồn tại trong hệ thống
                 if customer_type == "new":
                     result = "not_found"
-                else:  # customer_type == "old"
-                    result = "phone_not_exists"
+                else:  # customer_type == "returning"
+                    result = "not_found"  # Giữ nguyên kết quả "not_found" để frontend xử lý
             except:
                 result = "error_checking"
 
@@ -108,16 +106,6 @@ def process_phone_from_screen():
 def check_automation_result(phone):
     if phone in automation_results:
         result = automation_results.pop(phone)  # Lấy và xóa kết quả sau khi trả về
-        if result == "phone_exists":
-            return jsonify({
-                "automation_result": "error",
-                "message": "Số điện thoại đã tồn tại trong hệ thống. Vui lòng chọn loại khách hàng là 'Khách hàng cũ'."
-            }), 200
-        elif result == "phone_not_exists":
-            return jsonify({
-                "automation_result": "error",
-                "message": "Số điện thoại không tồn tại trong hệ thống. Vui lòng chọn loại khách hàng là 'Khách hàng mới'."
-            }), 200
         return jsonify({"automation_result": result}), 200
     else:
         return jsonify({"message": "Đang xử lý hoặc không tìm thấy kết quả."}), 200

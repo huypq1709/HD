@@ -43,14 +43,13 @@ def run_automation(phone, customer_type):
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
 
         # Đợi trang load sau khi đăng nhập
-        time.sleep(5)
+        time.sleep(3)
 
         # Đợi radio_all xuất hiện và click
         radio_all = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "radio_0"))
         )
         radio_all.click()
-        time.sleep(1)  # Đợi radio được chọn
 
         # Đợi input search xuất hiện
         search_input = WebDriverWait(driver, 10).until(
@@ -61,23 +60,21 @@ def run_automation(phone, customer_type):
         search_input.send_keys(Keys.ENTER)
 
         # Đợi kết quả tìm kiếm load
-        time.sleep(2)
+        time.sleep(1)
 
         # Kiểm tra kết quả tìm kiếm
         try:
-            # Đợi tối đa 15 giây cho kết quả tìm kiếm
-            WebDriverWait(driver, 15).until(
+            # Đợi tối đa 10 giây cho kết quả tìm kiếm
+            WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH,
                                                 "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']"))
             )
             result = "found"
         except:
             try:
-                # Đợi tối đa 15 giây cho thông báo không tìm thấy
-                WebDriverWait(driver, 15).until(EC.visibility_of_element_located(
+                # Đợi tối đa 10 giây cho thông báo không tìm thấy
+                WebDriverWait(driver, 10).until(EC.visibility_of_element_located(
                     (By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")))
-                # Đợi thêm 1 giây để đảm bảo thông báo đã hiển thị đầy đủ
-                time.sleep(1)
                 result = "not_found"
             except:
                 result = "error_checking"

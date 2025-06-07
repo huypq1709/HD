@@ -246,7 +246,16 @@ export function PaymentScreen({
                     <span className="text-gray-600">
                         {cleanServiceName(formData.service)} - {getMembershipNameDisplay(formData.membership, language)}
                     </span>
-                    <span className="font-semibold">{formatCurrency(paymentDetails.expectedAmount)}</span>
+                    <span className="font-semibold">
+                        {formData.membershipStandardPriceFormatted && formData.membershipStandardPriceFormatted !== formData.membershipPriceFormatted ? (
+                            <>
+                                <span className="line-through text-gray-400 mr-2">{formData.membershipStandardPriceFormatted}</span>
+                                <span className="text-green-600">{formData.membershipPriceFormatted}</span>
+                            </>
+                        ) : (
+                            <span className="text-blue-600">{formData.membershipPriceFormatted}</span>
+                        )}
+                    </span>
                 </div>
             </div>
 

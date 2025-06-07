@@ -16,13 +16,8 @@ pyperclip   # <-- THÊM DÒNG NÀY VÀO
 # ví dụ:
 # numpy
 # opencv-python
-flask
-flask-cors
 google-generativeai
 chromadb
-transformers
-torch
-gunicorn
-DirectoryLoader
-RecursiveCharacterTextSplitter
-TextLoader
+langchain
+langchain-community
+python-dotenv

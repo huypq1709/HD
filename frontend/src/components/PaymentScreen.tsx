@@ -32,47 +32,47 @@ const PAYMENT_UI_TIMEOUT_SECONDS = 120; // 2 phút
 // };
 
 // Hàm tính giá gói tập giống MembershipScreen
-const calculateMembershipPrice = (membershipId: string, customerType: string): number => {
-    if (membershipId === "1 day") return 60000;
-    const BASE_MONTHLY_PRICE_VND = 600000;
-    const DURATION_IN_MONTHS: { [key: string]: number } = {
-        "1 month": 1,
-        "3 months": 3,
-        "6 months": 6,
-        "1 year": 12,
-    };
-    const STANDARD_DURATION_DISCOUNTS: { [key: string]: number } = {
-        "1 month": 0,
-        "3 months": 0.10,
-        "6 months": 0.15,
-        "1 year": 0.20,
-    };
-    const PROMO_DISCOUNTS_OLD_CUSTOMER: { [key: string]: number } = {
-        "1 month": 0.05,
-        "3 months": 0.10,
-        "6 months": 0.15,
-        "1 year": 0.15,
-    };
-    const PROMO_DISCOUNTS_NEW_CUSTOMER: { [key: string]: number } = {
-        "1 month": 0.10,
-        "3 months": 0.15,
-        "6 months": 0.25,
-        "1 year": 0.30,
-    };
-    const months = DURATION_IN_MONTHS[membershipId];
-    if (!months) return 0;
-    const totalGrossPrice = BASE_MONTHLY_PRICE_VND * months;
-    const standardDiscountRate = STANDARD_DURATION_DISCOUNTS[membershipId] ?? 0;
-    const priceAfterStandardDiscount = totalGrossPrice * (1 - standardDiscountRate);
-    let promotionalDiscountRate = 0;
-    if (customerType === "returning" && PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId] !== undefined) {
-        promotionalDiscountRate = PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId];
-    } else if (customerType === "new" && PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId] !== undefined) {
-        promotionalDiscountRate = PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId];
-    }
-    const finalPrice = priceAfterStandardDiscount * (1 - promotionalDiscountRate);
-    return Math.round(finalPrice);
-};
+// const calculateMembershipPrice = (membershipId: string, customerType: string): number => {
+//     if (membershipId === "1 day") return 60000;
+//     const BASE_MONTHLY_PRICE_VND = 600000;
+//     const DURATION_IN_MONTHS: { [key: string]: number } = {
+//         "1 month": 1,
+//         "3 months": 3,
+//         "6 months": 6,
+//         "1 year": 12,
+//     };
+//     const STANDARD_DURATION_DISCOUNTS: { [key: string]: number } = {
+//         "1 month": 0,
+//         "3 months": 0.10,
+//         "6 months": 0.15,
+//         "1 year": 0.20,
+//     };
+//     const PROMO_DISCOUNTS_OLD_CUSTOMER: { [key: string]: number } = {
+//         "1 month": 0.05,
+//         "3 months": 0.10,
+//         "6 months": 0.15,
+//         "1 year": 0.15,
+//     };
+//     const PROMO_DISCOUNTS_NEW_CUSTOMER: { [key: string]: number } = {
+//         "1 month": 0.10,
+//         "3 months": 0.15,
+//         "6 months": 0.25,
+//         "1 year": 0.30,
+//     };
+//     const months = DURATION_IN_MONTHS[membershipId];
+//     if (!months) return 0;
+//     const totalGrossPrice = BASE_MONTHLY_PRICE_VND * months;
+//     const standardDiscountRate = STANDARD_DURATION_DISCOUNTS[membershipId] ?? 0;
+//     const priceAfterStandardDiscount = totalGrossPrice * (1 - standardDiscountRate);
+//     let promotionalDiscountRate = 0;
+//     if (customerType === "returning" && PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId] !== undefined) {
+//         promotionalDiscountRate = PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId];
+//     } else if (customerType === "new" && PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId] !== undefined) {
+//         promotionalDiscountRate = PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId];
+//     }
+//     const finalPrice = priceAfterStandardDiscount * (1 - promotionalDiscountRate);
+//     return Math.round(finalPrice);
+// };
 
 export function PaymentScreen({
                                   formData,
@@ -119,7 +119,6 @@ export function PaymentScreen({
             setPaymentStatus("initializing");
             const initiateAndGenerateQR = async () => {
                 try {
-                    const selectedPrice = calculateMembershipPrice(formData.membership, formData.customerType);
                     const response = await fetch("/api/app1/initiate-payment", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -127,18 +126,18 @@ export function PaymentScreen({
                             service: formData.service,
                             membership: formData.membership,
                             phoneNumber: formData.phoneNumber,
-                            amount: selectedPrice, // Nếu backend cần
+                            customerType: formData.customerType,
                         }),
                     });
                     const data = await response.json();
-                    if (response.ok && data.success && data.order_id && data.payment_message) {
+                    if (response.ok && data.success && data.order_id && data.payment_message && data.expected_amount) {
                         setPaymentDetails({
                             orderId: data.order_id,
-                            expectedAmount: selectedPrice,
+                            expectedAmount: data.expected_amount,
                             paymentMessage: data.payment_message,
                         });
-                        // Tạo QR với đúng số tiền
-                        const qrUrl = `https://qr.sepay.vn/img?acc=${MY_BANK_ACCOUNT}&bank=${MY_BANK_NAME_VIETQR_ID}&amount=${selectedPrice}&des=${encodeURIComponent(data.payment_message)}&template=compact2`;
+                        // Tạo QR với đúng số tiền trả về từ backend
+                        const qrUrl = `https://qr.sepay.vn/img?acc=${MY_BANK_ACCOUNT}&bank=${MY_BANK_NAME_VIETQR_ID}&amount=${data.expected_amount}&des=${encodeURIComponent(data.payment_message)}&template=compact2`;
                         setQrCodeUrl(qrUrl);
                         setPaymentStatus("pending");
                     } else {

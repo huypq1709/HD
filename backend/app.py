@@ -162,4 +162,7 @@ def chat():
 
 # --- Chạy Server ---
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5009, debug=True)
+    # Lấy PORT từ biến môi trường của server, nếu không có thì mặc định là 5009 (để chạy local)
+    port = int(os.getenv('PORT', 5009))
+    # debug=False khi chạy trên server thật
+    app.run(host='0.0.0.0', port=port, debug=False)

@@ -67,6 +67,8 @@ def initiate_payment_session():
     membership_type = data.get("membership")
     customer_type = data.get("customerType")
 
+    print(f"[app1.py] Nhận membership_type: {membership_type!r}")
+
     if not service_type or not membership_type:
         print(f"[app1.py] Error: Missing service/membership in initiate-payment. Data: {data}")
         return jsonify({"success": False, "message": "Thiếu thông tin dịch vụ hoặc gói thành viên."}), 400

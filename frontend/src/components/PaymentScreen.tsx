@@ -7,6 +7,7 @@ interface PaymentScreenProps {
         service: string;
         membership: string;
         phoneNumber: string;
+        customerType: string;
         [key: string]: any;
     };
     nextStep: () => void; // Hàm để chuyển sang ConfirmationScreen (step 7)
@@ -20,6 +21,58 @@ const MY_BANK_ACCOUNT = "07019218501";
 const MY_BANK_NAME_VIETQR_ID = "TPB"; // TPBank
 const MY_ACCOUNT_HOLDER = "PHAM QUANG HUY";
 const PAYMENT_UI_TIMEOUT_SECONDS = 120; // 2 phút
+
+// Thêm object giá gói tập
+// const MEMBERSHIP_PRICES: { [key: string]: number } = {
+//     "1 day": 60000,
+//     "1 month": 600000,
+//     "3 months": 1620000,
+//     "6 months": 3060000,
+//     "1 year": 5760000,
+// };
+
+// Hàm tính giá gói tập giống MembershipScreen
+const calculateMembershipPrice = (membershipId: string, customerType: string): number => {
+    if (membershipId === "1 day") return 60000;
+    const BASE_MONTHLY_PRICE_VND = 600000;
+    const DURATION_IN_MONTHS: { [key: string]: number } = {
+        "1 month": 1,
+        "3 months": 3,
+        "6 months": 6,
+        "1 year": 12,
+    };
+    const STANDARD_DURATION_DISCOUNTS: { [key: string]: number } = {
+        "1 month": 0,
+        "3 months": 0.10,
+        "6 months": 0.15,
+        "1 year": 0.20,
+    };
+    const PROMO_DISCOUNTS_OLD_CUSTOMER: { [key: string]: number } = {
+        "1 month": 0.05,
+        "3 months": 0.10,
+        "6 months": 0.15,
+        "1 year": 0.15,
+    };
+    const PROMO_DISCOUNTS_NEW_CUSTOMER: { [key: string]: number } = {
+        "1 month": 0.10,
+        "3 months": 0.15,
+        "6 months": 0.25,
+        "1 year": 0.30,
+    };
+    const months = DURATION_IN_MONTHS[membershipId];
+    if (!months) return 0;
+    const totalGrossPrice = BASE_MONTHLY_PRICE_VND * months;
+    const standardDiscountRate = STANDARD_DURATION_DISCOUNTS[membershipId] ?? 0;
+    const priceAfterStandardDiscount = totalGrossPrice * (1 - standardDiscountRate);
+    let promotionalDiscountRate = 0;
+    if (customerType === "returning" && PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId] !== undefined) {
+        promotionalDiscountRate = PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId];
+    } else if (customerType === "new" && PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId] !== undefined) {
+        promotionalDiscountRate = PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId];
+    }
+    const finalPrice = priceAfterStandardDiscount * (1 - promotionalDiscountRate);
+    return Math.round(finalPrice);
+};
 
 export function PaymentScreen({
                                   formData,
@@ -62,148 +115,88 @@ export function PaymentScreen({
 
     // EFFECT 1: Khởi tạo phiên và tạo QR
     useEffect(() => {
-        // Chỉ chạy nếu chưa có orderId và chưa điều hướng/timeout
         if (!paymentDetails.orderId && !hasNavigatedOrTimedOutRef.current) {
             setPaymentStatus("initializing");
             const initiateAndGenerateQR = async () => {
                 try {
-                    // Mapping membership cho từng loại service
-                    const membershipMap: { [service: string]: { [key: string]: string } } = {
-                        gym: {
-                            "1 year": "GYM 12 THÁNG",
-                            "6 months": "GYM 6 THÁNG",
-                            "3 months": "GYM 3 THÁNG",
-                            "1 month": "GYM 1 THÁNG",
-                            "1 day": "GYM 1 NGÀY"
-                        },
-                        yoga: {
-                            "1 year": "YOGA 12 THÁNG",
-                            "6 months": "YOGA 6 THÁNG",
-                            "3 months": "YOGA 3 THÁNG",
-                            "1 month": "YOGA 1 THÁNG"
-                        }
-                    };
-                    const membershipForBackend = membershipMap[formData.service]?.[formData.membership] || formData.membership;
-                    console.log("Gửi lên backend:", {
-                        service: formData.service,
-                        membership: membershipForBackend,
-                        phoneNumber: formData.phoneNumber,
-                    });
-
+                    const selectedPrice = calculateMembershipPrice(formData.membership, formData.customerType);
                     const response = await fetch("/api/app1/initiate-payment", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             service: formData.service,
-                            membership: membershipForBackend,
+                            membership: formData.membership,
                             phoneNumber: formData.phoneNumber,
+                            amount: selectedPrice, // Nếu backend cần
                         }),
                     });
                     const data = await response.json();
-                    if (response.ok && data.success && data.order_id && data.expected_amount && data.payment_message) {
+                    if (response.ok && data.success && data.order_id && data.payment_message) {
                         setPaymentDetails({
                             orderId: data.order_id,
-                            expectedAmount: data.expected_amount,
+                            expectedAmount: selectedPrice,
                             paymentMessage: data.payment_message,
                         });
-                        const qrUrl = `https://qr.sepay.vn/img?acc=${MY_BANK_ACCOUNT}&bank=${MY_BANK_NAME_VIETQR_ID}&amount=${data.expected_amount}&des=${encodeURIComponent(data.payment_message)}&template=compact2`;
+                        // Tạo QR với đúng số tiền
+                        const qrUrl = `https://qr.sepay.vn/img?acc=${MY_BANK_ACCOUNT}&bank=${MY_BANK_NAME_VIETQR_ID}&amount=${selectedPrice}&des=${encodeURIComponent(data.payment_message)}&template=compact2`;
                         setQrCodeUrl(qrUrl);
-                        setPaymentStatus("pending"); // Chuyển sang chờ thanh toán
+                        setPaymentStatus("pending");
                     } else {
                         throw new Error(data.message || "Failed to start payment session.");
                     }
                 } catch (error: any) {
                     console.error("Error initiating payment session:", error);
-                    setPaymentStatus("error_session"); // Lỗi khi khởi tạo
+                    setPaymentStatus("error_session");
                 }
             };
             initiateAndGenerateQR();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.membership, formData.service, formData.phoneNumber]); // Chạy lại khi membership/service/phone thay đổi
+    }, [formData.membership, formData.service, formData.phoneNumber, formData.customerType]);
 
     // EFFECT 2: Polling kiểm tra trạng thái
     useEffect(() => {
         if (paymentDetails.orderId && paymentStatus === "pending" && !hasNavigatedOrTimedOutRef.current) {
             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-            
-            // Polling ngay lập tức lần đầu
-            const checkStatus = async () => {
+            pollingIntervalRef.current = setInterval(async () => {
                 try {
                     const response = await fetch(`/api/app1/check-payment-status?order_id=${paymentDetails.orderId}`);
                     const result = await response.json();
                     console.log("Polling result for order", paymentDetails.orderId, ":", result);
-                    
-                    if (result.success) {
-                        if (result.status === "success") {
-                            setPaymentStatus("success");
-                            stopPolling();
-                            stopTimer();
-                            hasNavigatedOrTimedOutRef.current = true;
-                            setTimeout(() => {
-                                nextStep();
-                            }, 2000);
-                        } else if (result.status === "failed_amount_mismatch") {
-                            setPaymentStatus("failed_amount_mismatch");
-                            stopPolling();
-                            stopTimer();
-                        } else if (result.status === "timeout") {
-                            setPaymentStatus("timeout");
-                            stopPolling();
-                            stopTimer();
-                            hasNavigatedOrTimedOutRef.current = true;
-                            resetFormData();
-                            setTimeout(() => {
-                                resetToIntro();
-                            }, 3000);
-                        } else if (result.status === "not_found") {
-                            setPaymentStatus("error_polling");
-                            stopPolling();
-                            stopTimer();
-                        }
+                    if (result.success && result.status && result.status !== "pending" && result.status !== "not_found") {
+                        setPaymentStatus(result.status); // Cập nhật trạng thái cuối cùng
+                        // Không dừng polling ở đây, để useEffect xử lý trạng thái dừng
+                    } else if (result.status === "not_found") {
+                        setPaymentStatus("error_polling"); // Phiên không tìm thấy
                     }
                 } catch (error) {
                     console.error("Polling error:", error);
-                    setPaymentStatus("error_polling");
-                    stopPolling();
-                    stopTimer();
+                    // Có thể thêm logic retry hoặc thông báo lỗi nếu polling thất bại nhiều lần
                 }
-            };
-
-            // Chạy kiểm tra ngay lập tức
-            checkStatus();
-            
-            // Sau đó mới bắt đầu polling mỗi 2 giây
-            pollingIntervalRef.current = setInterval(checkStatus, 2000);
+            }, 3000);
         }
         return () => stopPolling();
-    }, [paymentDetails.orderId, paymentStatus, stopPolling, stopTimer, nextStep, resetToIntro, resetFormData]);
+    }, [paymentDetails.orderId, paymentStatus, stopPolling]);
 
     // EFFECT 3: Bộ đếm ngược thời gian
     useEffect(() => {
         if (paymentStatus === 'pending' && !hasNavigatedOrTimedOutRef.current) {
             if (timeLeft === 0) {
                 stopTimer();
-                setPaymentStatus("timeout_ui");
-                hasNavigatedOrTimedOutRef.current = true;
-                resetFormData();
-                setTimeout(() => {
-                    resetToIntro();
-                }, 3000);
+                setPaymentStatus("timeout_ui"); // Đặt trạng thái timeout từ UI
                 return;
             }
             timerIntervalRef.current = setInterval(() => {
                 setTimeLeft((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
             }, 1000);
         } else {
-            stopTimer();
+            stopTimer(); // Dừng timer nếu không còn pending hoặc đã xử lý timeout/success
         }
         return () => stopTimer();
-    }, [timeLeft, paymentStatus, stopTimer, resetToIntro, resetFormData]);
+    }, [timeLeft, paymentStatus, stopTimer]);
 
     // EFFECT 4: Xử lý logic dựa trên thay đổi paymentStatus
     useEffect(() => {
-        if (hasNavigatedOrTimedOutRef.current) return;
+        if (hasNavigatedOrTimedOutRef.current) return; // Nếu đã xử lý, không làm gì nữa
 
         let newMessage = "";
         let shouldStopActivities = false;
@@ -218,15 +211,26 @@ export function PaymentScreen({
             case "success":
                 newMessage = language === "en" ? "Payment successful! Redirecting..." : "Thanh toán thành công! Đang chuyển hướng...";
                 shouldStopActivities = true;
+                hasNavigatedOrTimedOutRef.current = true; // Đánh dấu đã xử lý
+                setTimeout(() => {
+                    nextStep(); // Chuyển sang ConfirmationScreen
+                }, 2000);
                 break;
             case "failed_amount_mismatch":
                 newMessage = language === "en" ? "Payment failed: Amount mismatch. Contact support." : "Thanh toán thất bại: Sai số tiền. Vui lòng liên hệ hỗ trợ.";
                 shouldStopActivities = true;
                 break;
-            case "timeout_ui":
-            case "timeout":
+            case "timeout_ui": // Timeout do UI đếm ngược
+            case "timeout":    // Timeout do backend thông báo (ví dụ qua polling)
                 newMessage = language === "en" ? "Payment timed out. Returning to home..." : "Hết thời gian thanh toán. Đang quay về trang chủ...";
                 shouldStopActivities = true;
+                if (!hasNavigatedOrTimedOutRef.current) { // Đảm bảo reset và điều hướng chỉ 1 lần
+                    hasNavigatedOrTimedOutRef.current = true;
+                    resetFormData();
+                    setTimeout(() => {
+                        resetToIntro();
+                    }, 3000);
+                }
                 break;
             case "error_session":
                 newMessage = language === "en" ? "Error initializing. Please try again or go back." : "Lỗi khởi tạo phiên. Vui lòng thử lại hoặc quay lại.";
@@ -237,6 +241,7 @@ export function PaymentScreen({
                 shouldStopActivities = true;
                 break;
             default:
+                // Giữ nguyên statusMessage nếu không khớp case nào
                 return;
         }
 
@@ -246,7 +251,7 @@ export function PaymentScreen({
             stopPolling();
             stopTimer();
         }
-    }, [paymentStatus, language, stopPolling, stopTimer]);
+    }, [paymentStatus, language, nextStep, resetToIntro, resetFormData, stopPolling, stopTimer]);
 
 
     // Các hàm helper và JSX render giữ nguyên như bạn đã có
@@ -269,15 +274,8 @@ export function PaymentScreen({
                     <span className="text-gray-600">
                         {cleanServiceName(formData.service)} - {getMembershipNameDisplay(formData.membership, language)}
                     </span>
-                    <span className="font-semibold">
-                        {formData.membershipStandardPriceFormatted && formData.membershipStandardPriceFormatted !== formData.membershipPriceFormatted ? (
-                            <>
-                                <span className="line-through text-gray-400 mr-2">{formData.membershipStandardPriceFormatted}</span>
-                                <span className="text-green-600">{formData.membershipPriceFormatted}</span>
-                            </>
-                        ) : (
-                            <span className="text-blue-600">{formData.membershipPriceFormatted}</span>
-                        )}
+                    <span className="font-semibold text-blue-600">
+                        {calculateMembershipPrice(formData.membership, formData.customerType).toLocaleString("vi-VN")} VND
                     </span>
                 </div>
             </div>

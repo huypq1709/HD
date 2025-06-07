@@ -1,12 +1,10 @@
-# File: backend/requirements.txt
-
 Flask
-gunicorn
 Flask-Cors
-selenium
-beautifulsoup4
 google-generativeai
 chromadb
 langchain
 langchain-community
+langchain-text-splitters
+selenium
+beautifulsoup4
 python-dotenv

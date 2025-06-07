@@ -10,33 +10,37 @@ interface FormData {
     [key: string]: any; // Thêm index signature để cho phép các thuộc tính bổ sung
 }
 
-export async function registerUser(formData: FormData) { // Sử dụng interface FormData đã định nghĩa
-    // Đảm bảo URL này CHÍNH XÁC khớp với cổng và endpoint của Flask backend
-    // Backend Flask của bạn đang chạy ở cổng 5007 và endpoint là /api/start-automation
-    const API_URL = 'http://localhost:5007/api/start-automation';
+export async function registerUser(formData: FormData) {
+    // Sử dụng đường dẫn tương đối để phù hợp với cấu hình Nginx
+    const API_URL = '/api/app5/start-automation';
 
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify(formData) // Gửi toàn bộ formData
+            body: JSON.stringify(formData)
         });
 
         if (!response.ok) {
-            // Nếu phản hồi không thành công (ví dụ: status 4xx hoặc 5xx)
-            // Cố gắng đọc thông báo lỗi từ phản hồi của server
-            const errorData = await response.json().catch(() => ({ message: 'Unknown error occurred on server.' }));
-            throw new Error(errorData.message || 'Network response was not ok');
+            const errorData = await response.json().catch(() => ({ 
+                message: 'Server error occurred. Please try again later.' 
+            }));
+            throw new Error(errorData.message || `Server error: ${response.status}`);
         }
 
-        // Nếu thành công, trả về dữ liệu JSON từ backend (chứa status và message)
-        return await response.json();
+        const data = await response.json();
+        if (!data) {
+            throw new Error('No data received from server');
+        }
+        return data;
     } catch (error: any) {
-        // Xử lý lỗi mạng hoặc lỗi không thể kết nối tới server
         console.error('Error in registerUser (API call):', error);
-        // Ném lỗi để ConfirmationScreen có thể bắt và hiển thị cho người dùng
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            throw new Error('Cannot connect to automation server. Please check if the server is running.');
+        }
         throw new Error(`Failed to connect to automation server: ${error.message}`);
     }
 }

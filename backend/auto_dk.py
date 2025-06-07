@@ -12,6 +12,7 @@ import threading
 from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -23,11 +24,6 @@ app = Flask(__name__)
 CORS(app)
 
 # --- CẤU HÌNH SELENIUM ---
-# Đảm bảo CHROME_DRIVER_PATH trỏ đến chromedriver của bạn.
-# Nếu chromedriver nằm trong PATH của hệ thống, bạn có thể bỏ qua executable_path.
-# CHROME_DRIVER_PATH = "./chromedriver" # Bỏ comment nếu bạn muốn chỉ định đường dẫn cụ thể
-# Lưu ý: chromedriver phải tương thích với phiên bản Chrome của bạn.
-
 def _initialize_driver():
     """Khởi tạo và trả về một instance WebDriver."""
     chrome_options = Options()
@@ -37,15 +33,13 @@ def _initialize_driver():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
-    driver = None
     try:
-        # Nếu chromedriver nằm trong PATH, bạn có thể dùng driver = webdriver.Chrome(options=chrome_options)
+        # Sử dụng ChromeService với đường dẫn tương đối
+        service = ChromeService()
         driver = webdriver.Chrome(service=service, options=chrome_options)
-        # Nếu bạn cần chỉ định đường dẫn:
-        # driver = webdriver.Chrome(executable_path=CHROME_DRIVER_PATH, options=chrome_options)
         return driver
     except WebDriverException as e:
+        print(f"Lỗi khởi tạo Chrome driver: {e}")
         return None
 
 def _login_to_timesoft(driver: webdriver.Chrome):
@@ -459,43 +453,58 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
 # --- Endpoint để bắt đầu tự động hóa ---
 @app.route('/start-automation', methods=['POST'])
 def start_automation():
-    data = request.get_json()
-    phone_number = data.get("phoneNumber")
-    customer_type = data.get("customerType")
-    full_name = data.get("fullName") # Đảm bảo nhận full_name từ frontend
-    service = data.get("service")
-    membership = data.get("membership")
+    print("[auto_dk.py] Received request for /start-automation")
+    try:
+        data = request.get_json()
+        print("[auto_dk.py] Received data:", data)
+        
+        if not data:
+            print("[auto_dk.py] No data received in request")
+            return jsonify({"status": "error", "message": "No data received"}), 400
 
-    if not phone_number or not customer_type or not service or not membership:
-        # Kiểm tra thêm full_name nếu là khách mới
-        if customer_type == "new" and not full_name:
-             return jsonify({"status": "error", "message": "Thiếu thông tin cần thiết cho khách hàng mới (số điện thoại, họ tên, loại khách hàng, dịch vụ, gói tập)."}, 400)
-        return jsonify({"status": "error", "message": "Thiếu thông tin cần thiết (số điện thoại, loại khách hàng, dịch vụ, gói tập)."}, 400)
+        # Validate required fields
+        required_fields = ['customerType', 'phoneNumber', 'service', 'membership']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            print(f"[auto_dk.py] Missing required fields: {missing_fields}")
+            return jsonify({
+                "status": "error",
+                "message": f"Missing required fields: {', '.join(missing_fields)}"
+            }), 400
 
-    print(f"Nhận yêu cầu tự động hóa cho {customer_type} - {phone_number}")
+        # Extract data
+        customer_type = data['customerType']
+        phone_number = data['phoneNumber']
+        service_type = data['service']
+        membership_type = data['membership']
+        full_name = data.get('fullName', '')  # Optional for returning customers
 
-    if customer_type == "returning":
-        result = _automate_for_existing_customer_sync(phone_number, service, membership)
-    elif customer_type == "new":
-        result = _automate_for_new_customer_sync(phone_number, full_name, service, membership)
-    else:
-        return jsonify({"status": "error", "message": "Loại khách hàng không hợp lệ."}, 400)
-    if result and result["status"] == "success":  # Chỉ gửi Zalo nếu tác vụ Timesoft thành công
-        print("\n--- Gửi thông báo Zalo sau khi hoàn tất Timesoft ---")
+        print(f"[auto_dk.py] Processing request for customer type: {customer_type}")
+        print(f"[auto_dk.py] Phone: {phone_number}, Service: {service_type}, Membership: {membership_type}")
 
-        result["message"] += " và thông báo Zalo đã được gửi."
-    elif result:  # Nếu có lỗi trong Timesoft, thông báo rằng Zalo không được gửi
-        result["message"] += ". Thông báo Zalo không được gửi do lỗi Timesoft."
-    else:  # Trường hợp không có kết quả từ Timesoft (ví dụ: lỗi khởi tạo driver)
-        print("Không có kết quả từ Timesoft, không gửi Zalo.")
-        return jsonify({"status": "error", "message": "Lỗi không xác định trong quá trình tự động hóa Timesoft."})
+        # Process based on customer type
+        if customer_type == 'new':
+            if not full_name:
+                print("[auto_dk.py] Missing fullName for new customer")
+                return jsonify({
+                    "status": "error",
+                    "message": "Full name is required for new customers"
+                }), 400
+            result = _automate_for_new_customer_sync(phone_number, full_name, service_type, membership_type)
+        else:  # returning customer
+            result = _automate_for_existing_customer_sync(phone_number, service_type, membership_type)
 
-    return jsonify(result)
+        print(f"[auto_dk.py] Automation result: {result}")
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"[auto_dk.py] Error in start_automation: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"An error occurred: {str(e)}"
+        }), 500
 
 
 if __name__ == '__main__':
-    print("Automation Flask server started.")
-    print("Endpoints:")
-    print("  POST /api/start-automation - Bắt đầu quá trình tự động hóa (chờ kết quả)")
-    print("\n⚠️ Lưu ý: Đảm bảo ChromeDriver tương thích với phiên bản Chrome của bạn và nằm trong PATH, hoặc chỉ định CHROME_DRIVER_PATH.")
-    app.run(debug=True, port=5007) # CHẠY TRÊN CỔNG 5007
+    print("[auto_dk.py] Starting server on port 5007...")
+    app.run(host='0.0.0.0', port=5007, debug=True)

@@ -142,7 +142,7 @@ def get_chatbot_response(user_query: str) -> str:
     return DEFAULT_RESPONSES[lang]['fallback'] + CONTACT_INFO[lang]
 
 # --- Tạo Endpoint cho API ---
-@app.route('http://3.0.181.201/chat', methods=['POST'])
+@app.route('/chat', methods=['POST'])
 def chat():
     try:
         data = request.json

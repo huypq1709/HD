@@ -14,7 +14,7 @@ app = Flask(__name__)
 CORS(app)
 
 # --- Cấu hình API Key của Google ---
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.getenv("AIzaSyCozPRIJfm654FluAx_TVT_YAz7jCLQB5o")
 if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY not found in environment variables")
 

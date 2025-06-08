@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app) 
+# Cấu hình CORS chặt chẽ hơn cho môi trường production
+# Bạn cần thay 'http://3.0.181.201' bằng IP hoặc tên miền của bạn
+CORS(app, resources={r"/api/*": {"origins": ["http://3.0.181.201", "http://localhost:5173"]}}) 
 
 # --- Cấu hình API Key và các model ---
 print("Attempting to configure backend...")
@@ -23,7 +25,7 @@ initialization_error = ""
 
 try:
     if not GOOGLE_API_KEY:
-        raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+        raise ValueError("GOOGLE_API_KEY not found in environment variables. Please check your .env file on the server.")
     
     genai.configure(api_key=GOOGLE_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
@@ -99,16 +101,14 @@ def get_chatbot_response(user_query: str) -> str:
         print(f"!!! LỖI khi query ChromaDB: {e}")
         return DEFAULT_RESPONSES[lang]['fallback'] + CONTACT_INFO[lang]
 
-    # === THAY ĐỔI LOGIC Ở ĐÂY ===
     context_data = None
     if results and results['documents'] and results['documents'][0]:
-        # Log tất cả các kết quả tìm được và khoảng cách của chúng để gỡ lỗi
         print("[Chatbot] Các kết quả tìm được (distance càng nhỏ càng liên quan):")
         for i, (doc, dist) in enumerate(zip(results['documents'][0], results['distances'][0])):
-            print(f"  - Kết quả {i+1} (Distance: {dist:.4f}): \"{doc[:100]}...\"")
+            print(f"  - Kết quả {i+1} (Distance: {dist:.4f}): \"{doc[:80]}...\"")
 
-        # Nới lỏng ngưỡng chấp nhận kết quả
-        distance_threshold = 1.0 # <-- TĂNG NGƯỠNG LÊN
+        # Ngưỡng chấp nhận kết quả
+        distance_threshold = 1.0 
         valid_docs = [
             doc for doc, dist in zip(results['documents'][0], results['distances'][0]) 
             if dist < distance_threshold
@@ -121,24 +121,15 @@ def get_chatbot_response(user_query: str) -> str:
             print("[Chatbot] Không có đoạn văn bản nào đủ liên quan (dưới ngưỡng distance).")
 
     system_prompt = f"""Bạn là một trợ lý ảo chuyên nghiệp và thân thiện của trung tâm "HD Fitness and Yoga".
-- Trả lời câu hỏi của khách hàng một cách ngắn gọn, đi thẳng vào vấn đề, và chỉ dựa vào "TÀI LIỆU THAM KHẢO" được cung cấp.
-- PHẢI trả lời bằng { 'tiếng Việt' if lang == 'vi' else 'English' }.
-- Không tự bịa đặt thông tin không có trong tài liệu.
-- Nếu tài liệu không chứa câu trả lời, hãy trả lời một cách lịch sự rằng bạn chưa có thông tin này và hướng dẫn khách liên hệ các kênh hỗ trợ.
-- Trình bày câu trả lời một cách rõ ràng, sử dụng các gạch đầu dòng nếu cần.
+- Trả lời câu hỏi của khách hàng một cách ngắn gọn, đi thẳng vào vấn đề, và CHỈ DỰA VÀO "TÀI LIỆU THAM KHẢO" được cung cấp.
+- PHẢI trả lời bằng {'tiếng Việt' if lang == 'vi' else 'English'}.
+- Không tự bịa đặt thông tin.
+- Nếu tài liệu không chứa câu trả lời, hãy nói rõ rằng bạn chưa có thông tin này và hướng dẫn khách liên hệ các kênh hỗ trợ được cung cấp trong TÀI LIỆU THAM KHẢO.
+- Trình bày câu trả lời rõ ràng, dùng gạch đầu dòng nếu cần.
 """
 
     if context_data:
-        prompt = f"""{system_prompt}
-
-        **TÀI LIỆU THAM KHẢO:**
-        {context_data}
-
-        **Câu hỏi của khách hàng:**
-        "{user_query}"
-
-        **Câu trả lời của bạn:**
-        """
+        prompt = f"""{system_prompt}\n\n**TÀI LIỆU THAM KHẢO:**\n{context_data}\n\n**Câu hỏi của khách hàng:**\n"{user_query}"\n\n**Câu trả lời của bạn:**"""
         try:
             print("[Chatbot] Gửi prompt đến Gemini...")
             response = model.generate_content(prompt)

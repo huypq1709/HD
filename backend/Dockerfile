@@ -83,6 +83,7 @@ COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 COPY . .
+RUN python preload_models.py
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

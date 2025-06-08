@@ -85,23 +85,31 @@ def get_chatbot_response(user_query: str) -> str:
 
     # 3. Tìm kiếm thông tin trong cơ sở tri thức
     print("=> Tiến hành tìm kiếm RAG...")
-    results = collection.query(
-        query_texts=[user_query],
-        n_results=3,
-        include=["documents", "metadatas", "distances"]
-    )
-
+    print("=> Tiến hành tìm kiếm RAG...")
     context_data = None
-    if results and results['documents'] and results['documents'][0]:
-        # Lọc kết quả dựa trên khoảng cách (distance)
-        valid_docs = []
-        for doc, distance in zip(results['documents'][0], results['distances'][0]):
-            if distance < 0.8:  # Chỉ lấy các kết quả có độ tương đồng cao
-                valid_docs.append(doc)
+    try:
+        print("=> Bắt đầu collection.query()...")
+        results = collection.query(
+            query_texts=[user_query],
+            n_results=3,
+            include=["documents", "metadatas", "distances"]
+        )
+        print("=> collection.query() hoàn thành.")
+        if results and results['documents'] and results['documents'][0]:
+            print(f"=> Tìm thấy {len(results['documents'][0])} đoạn văn bản phù hợp.")
+            # Lọc kết quả dựa trên khoảng cách (distance)
+            valid_docs = []
+            for doc, distance in zip(results['documents'][0], results['distances'][0]):
+                if distance < 0.8:  # Chỉ lấy các kết quả có độ tương đồng cao
+                    valid_docs.append(doc)
+            
+            if valid_docs:
+                context_data = "\n---\n".join(valid_docs)
+                print(f"Tìm thấy {len(valid_docs)} đoạn văn bản phù hợp.")
+    except Exception as e:
+        print(f"Lỗi khi tìm kiếm RAG: {e}")
+        return DEFAULT_RESPONSES[lang]['fallback'] + CONTACT_INFO[lang]
         
-        if valid_docs:
-            context_data = "\n---\n".join(valid_docs)
-            print(f"Tìm thấy {len(valid_docs)} đoạn văn bản phù hợp.")
 
     # 4. Tạo prompt và câu trả lời
     system_prompts = {
@@ -131,11 +139,12 @@ def get_chatbot_response(user_query: str) -> str:
         **Câu trả lời của bạn:**
         """
         try:
+            print("=> Chuẩn bị gọi Gemini API...")
             response = model.generate_content(prompt)
             print("=> Gemini đã tạo câu trả lời.")
             return response.text
         except Exception as e:
-            print(f"Lỗi khi gọi Gemini API: {e}")
+            print(f"!!! LỖI khi gọi Gemini API: {e}")
             return DEFAULT_RESPONSES[lang]['fallback'] + CONTACT_INFO[lang]
 
     print("Không tìm thấy thông tin phù hợp, trả về câu trả lời mặc định.")

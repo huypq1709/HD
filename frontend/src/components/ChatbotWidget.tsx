@@ -98,17 +98,11 @@ const ChatbotWidget: React.FC = () => {
     clearTimeout(autoCloseTimer.current); // Dừng auto close khi đang gửi câu hỏi
 
     try {
-        const historyForApi = newMessages.slice(0, -1).map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: msg.parts
-        }));
-
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                message: inputValue,
-                history: historyForApi,
+                message: inputValue
             }),
         });
         if (!response.ok) throw new Error('Network response was not ok');

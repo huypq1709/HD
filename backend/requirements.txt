@@ -20,3 +20,4 @@ langchain
 langchain-community
 langdetect
 python-dotenv
+

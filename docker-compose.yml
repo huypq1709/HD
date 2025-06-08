@@ -5,8 +5,8 @@ services:
   backend:
     build: ./backend
     restart: always
-    env_file:
-      - ./.env
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
 
   # Service cho Frontend React
   frontend:

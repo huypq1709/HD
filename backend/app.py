@@ -1,3 +1,5 @@
+# File: backend/app.py (PHIÊN BẢN TỐI ƯU HÓA CHATBOT)
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
@@ -6,81 +8,78 @@ import os
 from langdetect import detect, LangDetectException
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# --- Cấu hình ứng dụng Flask ---
 app = Flask(__name__)
-# Cho phép yêu cầu từ địa chỉ IP của server và localhost (để test trên máy bạn nếu cần)
-# Trong môi trường production thực tế có tên miền, bạn sẽ thay bằng tên miền đó.
-origins = [
-    "http://localhost:5173",  # Cổng mặc định của Vite để bạn test local
-    "http://3.0.181.201"      # IP server của bạn
-]
-CORS(app, resources={r"/api/*": {"origins": origins}})
+CORS(app) 
 
-# --- Cấu hình API Key của Google ---
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") # <<< SỬA LẠI THÀNH THẾ NÀY
-if not GOOGLE_API_KEY:
-    raise ValueError("GOOGLE_API_KEY not found in environment variables")
+# --- Cấu hình API Key và các model ---
+print("Attempting to configure backend...")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+model = None
+collection = None
+is_backend_ready = False
+initialization_error = ""
 
-genai.configure(api_key=GOOGLE_API_KEY)
-
-# --- Khởi tạo mô hình Gemini ---
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-# --- Kết nối tới Cơ sở tri thức Vector (ChromaDB) ---
-print("Đang kết nối tới cơ sở dữ liệu vector...")
 try:
+    if not GOOGLE_API_KEY:
+        raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+    
+    genai.configure(api_key=GOOGLE_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    print(">>> Gemini model configured successfully.")
+
+    print("Connecting to vector database...")
     client = chromadb.PersistentClient(path="db")
     collection = client.get_collection(name="customer_service_qa")
-    print("=> Kết nối cơ sở dữ liệu thành công.")
+    print(">>> ChromaDB connection successful.")
+
+    is_backend_ready = True
+    print("✅ Chatbot backend is ready.")
+
 except Exception as e:
-    print(f"Lỗi: Không thể kết nối hoặc lấy collection từ ChromaDB. Hãy chắc chắn bạn đã chạy file 'load_data.py' trước. Chi tiết: {e}")
-    exit()
+    initialization_error = str(e)
+    print(f"!!! CRITICAL STARTUP ERROR: {initialization_error}")
+
 
 # --- Cấu hình câu trả lời mặc định ---
 DEFAULT_RESPONSES = {
     'vi': {
         'greeting': "Chào bạn, tôi là trợ lý ảo của HD Fitness and Yoga. Tôi có thể giúp gì cho bạn?",
-        'fallback': "Tôi chỉ là một mô hình chatbot AI bé nhỏ. Sếp tôi chưa cho tôi biết thông tin này. Vui lòng liên hệ sếp tôi theo các kênh sau nhé:\n\n"
+        'fallback': "Cảm ơn câu hỏi của bạn. Hiện tại tôi chưa được cung cấp thông tin chi tiết về vấn đề này. Để được hỗ trợ tốt nhất, bạn vui lòng liên hệ qua các kênh sau nhé:\n\n"
     },
     'en': {
         'greeting': "Hello! I am the virtual assistant for HD Fitness and Yoga. How can I help you today?",
-        'fallback': "I am just a small AI chatbot. My boss hasn't told me this information yet. Please contact my boss via the following channels:\n\n"
+        'fallback': "Thank you for your question. I don't have detailed information on this topic yet. For the best support, please contact us through the following channels:\n\n"
     }
 }
 
 CONTACT_INFO = {
     'vi': (
-        "- Zalo chính thức: HD fitness and yoga, số 033244646\n"
-        "- Hỗ trợ kỹ thuật: Zalo số 0971166684\n"
-        "- Hotline khẩn cấp: 0979764885"
+        "- **Zalo chính thức:** HD fitness and yoga (số 033244646)\n"
+        "- **Hỗ trợ kỹ thuật (Zalo):** 0971166684\n"
+        "- **Hotline khẩn cấp:** 0979764885"
     ),
     'en': (
-        "- Official Zalo: HD fitness and yoga, number 033244646\n"
-        "- Technical Support: Zalo Mr. Huy, number 0971166684\n"
-        "- Emergency Hotline: 0979764885"
+        "- **Official Zalo:** HD fitness and yoga (number 033244646)\n"
+        "- **Technical Support:** Zalo Mr. Huy (number 0971166684)\n"
+        "- **Emergency Hotline:** 0979764885"
     )
 }
 
 # --- Hàm logic chính của Chatbot ---
 def get_chatbot_response(user_query: str) -> str:
-    """
-    Hàm này nhận câu hỏi, phát hiện ngôn ngữ, tìm kiếm và tạo câu trả lời tương ứng.
-    """
-    print(f"\nNhận câu hỏi: '{user_query}'")
+    print(f"\n[Chatbot] Nhận câu hỏi: '{user_query}'")
     user_query_lower = user_query.lower().strip()
 
-    # 1. Phát hiện ngôn ngữ
     try:
         lang = detect(user_query)
-        print(f"=> Ngôn ngữ được phát hiện: {lang}")
+        if lang not in ['vi', 'en']: lang = 'vi' # Mặc định là 'vi' nếu không phải en/vi
+        print(f"[Chatbot] Ngôn ngữ được phát hiện: {lang}")
     except LangDetectException:
-        print("=> Không phát hiện được ngôn ngữ, mặc định là tiếng Việt.")
+        print("[Chatbot] Không phát hiện được ngôn ngữ, mặc định là tiếng Việt.")
         lang = 'vi'
 
-    # 2. Xử lý lời chào hỏi đơn giản
     greetings = {
         'vi': ["hi", "hello", "chào", "xin chào", "chào bạn", "chào shop", "alo"],
         'en': ["hi", "hello", "hey"]
@@ -89,52 +88,48 @@ def get_chatbot_response(user_query: str) -> str:
     if user_query_lower in greetings.get(lang, []):
         return DEFAULT_RESPONSES[lang]['greeting']
 
-    # 3. Tìm kiếm thông tin trong cơ sở tri thức
-    print("=> Tiến hành tìm kiếm RAG...")
-    print("=> Tiến hành tìm kiếm RAG...")
-    context_data = None
+    print("[Chatbot] Tiến hành tìm kiếm trong cơ sở tri thức (RAG)...")
     try:
-        print("=> Bắt đầu collection.query()...")
         results = collection.query(
             query_texts=[user_query],
-            n_results=3,
+            n_results=3, # Lấy 3 kết quả liên quan nhất
             include=["documents", "metadatas", "distances"]
         )
-        print("=> collection.query() hoàn thành.")
-        if results and results['documents'] and results['documents'][0]:
-            print(f"=> Tìm thấy {len(results['documents'][0])} đoạn văn bản phù hợp.")
-            # Lọc kết quả dựa trên khoảng cách (distance)
-            valid_docs = []
-            for doc, distance in zip(results['documents'][0], results['distances'][0]):
-                if distance < 0.8:  # Chỉ lấy các kết quả có độ tương đồng cao
-                    valid_docs.append(doc)
-            
-            if valid_docs:
-                context_data = "\n---\n".join(valid_docs)
-                print(f"Tìm thấy {len(valid_docs)} đoạn văn bản phù hợp.")
     except Exception as e:
-        print(f"Lỗi khi tìm kiếm RAG: {e}")
+        print(f"!!! LỖI khi query ChromaDB: {e}")
         return DEFAULT_RESPONSES[lang]['fallback'] + CONTACT_INFO[lang]
-        
 
-    # 4. Tạo prompt và câu trả lời
-    system_prompts = {
-        'en': """You are a virtual assistant for HD Fitness and Yoga. Your task is to answer customer questions directly and accurately, based ONLY on the provided reference text.
-- You MUST answer in English.
-- Synthesize information from ALL reference text snippets to provide a complete answer.
-- Do NOT ask questions back to the user. Get straight to the point.
-- If the reference text doesn't contain enough information, say so clearly.""",
+    # === THAY ĐỔI LOGIC Ở ĐÂY ===
+    context_data = None
+    if results and results['documents'] and results['documents'][0]:
+        # Log tất cả các kết quả tìm được và khoảng cách của chúng để gỡ lỗi
+        print("[Chatbot] Các kết quả tìm được (distance càng nhỏ càng liên quan):")
+        for i, (doc, dist) in enumerate(zip(results['documents'][0], results['distances'][0])):
+            print(f"  - Kết quả {i+1} (Distance: {dist:.4f}): \"{doc[:100]}...\"")
+
+        # Nới lỏng ngưỡng chấp nhận kết quả
+        distance_threshold = 1.0 # <-- TĂNG NGƯỠNG LÊN
+        valid_docs = [
+            doc for doc, dist in zip(results['documents'][0], results['distances'][0]) 
+            if dist < distance_threshold
+        ]
         
-        'vi': """Bạn là một trợ lý ảo của HD Fitness and Yoga. Nhiệm vụ của bạn là trả lời câu hỏi của khách hàng một cách trực tiếp, chính xác, và đầy đủ nhất có thể, chỉ dựa vào tài liệu tham khảo được cung cấp.
-- Bạn PHẢI trả lời bằng tiếng Việt.
-- Tổng hợp thông tin từ TẤT CẢ các đoạn tài liệu tham khảo để đưa ra câu trả lời hoàn chỉnh.
-- Nghiêm cấm đặt câu hỏi ngược lại cho người dùng.
-- Trả lời thẳng vào vấn đề.
-- Nếu tài liệu tham khảo không đủ thông tin, hãy nói rõ điều đó."""
-    }
+        if valid_docs:
+            context_data = "\n---\n".join(valid_docs)
+            print(f"[Chatbot] Tìm thấy {len(valid_docs)} đoạn văn bản hợp lệ (distance < {distance_threshold}).")
+        else:
+            print("[Chatbot] Không có đoạn văn bản nào đủ liên quan (dưới ngưỡng distance).")
+
+    system_prompt = f"""Bạn là một trợ lý ảo chuyên nghiệp và thân thiện của trung tâm "HD Fitness and Yoga".
+- Trả lời câu hỏi của khách hàng một cách ngắn gọn, đi thẳng vào vấn đề, và chỉ dựa vào "TÀI LIỆU THAM KHẢO" được cung cấp.
+- PHẢI trả lời bằng { 'tiếng Việt' if lang == 'vi' else 'English' }.
+- Không tự bịa đặt thông tin không có trong tài liệu.
+- Nếu tài liệu không chứa câu trả lời, hãy trả lời một cách lịch sự rằng bạn chưa có thông tin này và hướng dẫn khách liên hệ các kênh hỗ trợ.
+- Trình bày câu trả lời một cách rõ ràng, sử dụng các gạch đầu dòng nếu cần.
+"""
 
     if context_data:
-        prompt = f"""{system_prompts[lang]}
+        prompt = f"""{system_prompt}
 
         **TÀI LIỆU THAM KHẢO:**
         {context_data}
@@ -145,39 +140,36 @@ def get_chatbot_response(user_query: str) -> str:
         **Câu trả lời của bạn:**
         """
         try:
-            print("=> Chuẩn bị gọi Gemini API...")
+            print("[Chatbot] Gửi prompt đến Gemini...")
             response = model.generate_content(prompt)
-            print("=> Gemini đã tạo câu trả lời.")
+            print("[Chatbot] Gemini đã tạo câu trả lời.")
             return response.text
         except Exception as e:
             print(f"!!! LỖI khi gọi Gemini API: {e}")
             return DEFAULT_RESPONSES[lang]['fallback'] + CONTACT_INFO[lang]
 
-    print("Không tìm thấy thông tin phù hợp, trả về câu trả lời mặc định.")
+    print("[Chatbot] Không tìm thấy thông tin phù hợp, trả về câu trả lời mặc định.")
     return DEFAULT_RESPONSES[lang]['fallback'] + CONTACT_INFO[lang]
 
-# --- Tạo Endpoint cho API ---
 @app.route('/chat', methods=['POST'])
 def chat():
+    if not is_backend_ready:
+        return jsonify({"error": f"Chatbot service is not available due to: {initialization_error}"}), 503
+
     try:
         data = request.json
         if not data or 'message' not in data:
             return jsonify({"error": "Không nhận được tin nhắn"}), 400
-
         user_message = data['message']
         if not user_message.strip():
             return jsonify({"error": "Tin nhắn không được để trống"}), 400
 
         bot_response = get_chatbot_response(user_message)
         return jsonify({"reply": bot_response})
-
     except Exception as e:
-        print(f"Lỗi xử lý request: {e}")
-        return jsonify({"error": "Đã xảy ra lỗi khi xử lý yêu cầu"}), 500
+        print(f"[API /chat] Lỗi xử lý request: {e}")
+        return jsonify({"error": "Đã xảy ra lỗi khi xử lý yêu cầu của bạn."}), 500
 
-# --- Chạy Server ---
 if __name__ == '__main__':
-    # Lấy PORT từ biến môi trường của server, nếu không có thì mặc định là 5009 (để chạy local)
     port = int(os.getenv('PORT', 5009))
-    # debug=False khi chạy trên server thật
     app.run(host='0.0.0.0', port=port, debug=False)

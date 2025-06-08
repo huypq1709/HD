@@ -10,6 +10,8 @@ services:
   frontend:
     build: ./frontend
     restart: always
+    env_file: # <<< THÊM KHỐI NÀY VÀO
+      - ./.env
 
   # Service cho Nginx Reverse Proxy
   nginx-proxy:

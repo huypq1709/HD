@@ -5,6 +5,8 @@ services:
   backend:
     build: ./backend
     restart: always
+    env_file:
+      - ./.env
 
   # Service cho Frontend React
   frontend:

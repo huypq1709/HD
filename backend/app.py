@@ -11,7 +11,13 @@ load_dotenv()
 
 # --- Cấu hình ứng dụng Flask ---
 app = Flask(__name__)
-CORS(app)
+# Cho phép yêu cầu từ địa chỉ IP của server và localhost (để test trên máy bạn nếu cần)
+# Trong môi trường production thực tế có tên miền, bạn sẽ thay bằng tên miền đó.
+origins = [
+    "http://localhost:5173",  # Cổng mặc định của Vite để bạn test local
+    "http://3.0.181.201"      # IP server của bạn
+]
+CORS(app, resources={r"/api/*": {"origins": origins}})
 
 # --- Cấu hình API Key của Google ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") # <<< SỬA LẠI THÀNH THẾ NÀY

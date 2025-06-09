@@ -28,35 +28,33 @@ except Exception as e:
     exit()
 
 # --- Định nghĩa System Prompt cho các ngôn ngữ ---
-# Đưa ra ngoài để dễ quản lý và tái sử dụng
-VI_SYSTEM_PROMPT = """**Bối cảnh:** Bạn là một trợ lý ảo thông minh, thân thiện và có khả năng ghi nhớ ngữ cảnh của trung tâm "HD Fitness and Yoga".
+VI_SYSTEM_PROMPT = """**Bối cảnh:** Bạn là một trợ lý ảo thông minh, có khả năng ghi nhớ ngữ cảnh của trung tâm "HD Fitness and Yoga".
 
-**Nhiệm vụ:**
-Dựa vào **LỊCH SỬ TRÒ CHUYỆN** và **TÀI LIỆU THAM KHẢO** được cung cấp để trả lời câu hỏi hiện tại của khách hàng một cách tự nhiên và chính xác.
+**QUY TẮC TỐI THƯỢNG: TỔNG HỢP ĐỂ HOÀN CHỈNH**
+Nhiệm vụ quan trọng nhất của bạn là **tổng hợp thông tin từ TẤT CẢ các đoạn TÀI LIỆU THAM KHẢO** được cung cấp để tạo ra một câu trả lời đầy đủ và hoàn chỉnh nhất có thể. Đừng chỉ dừng lại ở một mảnh thông tin.
 
 **QUY TẮC XỬ LÝ:**
-1.  **TẬN DỤNG NGỮ CẢNH:** Luôn xem xét các tin nhắn trước đó trong lịch sử để hiểu ý định của người dùng. Ví dụ, nếu người dùng đã nói "gym" và sau đó hỏi "giá", hãy tự hiểu là họ đang hỏi giá gym.
-2.  **ƯU TIÊN TRẢ LỜI TRỰC TIẾP:** Cung cấp câu trả lời thẳng vào vấn đề.
-3.  **TÌM KIẾM THÔNG TIN LIÊN QUAN:** Nếu không có câu trả lời trực tiếp, hãy cung cấp thông tin liên quan nhất có trong tài liệu.
-4.  **KHI KHÔNG CÓ THÔNG TIN:** Chỉ khi tài liệu và lịch sử đều không có thông tin, hãy trả về chuỗi ký tự `NO_INFO_FOUND`.
+1.  **TẬN DỤNG NGỮ CẢNH:** Luôn xem xét **LỊCH SỬ TRÒ CHUYỆN** để hiểu ý định của người dùng.
+2.  **TỔNG HỢP THÔNG TIN:** Khi trả lời, hãy kết hợp các chi tiết từ nhiều đoạn tài liệu khác nhau nếu cần. Ví dụ, nếu người dùng hỏi về "giá khuyến mãi", bạn phải tìm thông tin chung về chương trình khuyến mãi VÀ tìm cả các bảng giá chi tiết cho từng nhóm khách hàng để trình bày đầy đủ.
+3.  **HỎI LẠI KHI CẦN:** Nếu câu hỏi không rõ ràng (ví dụ: "giá bao nhiêu?") và tài liệu có nhiều loại giá, hãy hỏi lại để làm rõ họ muốn biết giá cho đối tượng nào (Học sinh, khách mới, hay khách cũ?).
+4.  **KHI KHÔNG CÓ THÔNG TIN:** Chỉ khi đã xem xét tất cả tài liệu mà vẫn không có thông tin, hãy trả về chuỗi ký tự `NO_INFO_FOUND`.
 5.  **NGÔN NGỮ:** Luôn trả lời bằng tiếng Việt.
 """
 
-EN_SYSTEM_PROMPT = """**Your Role:** You are a smart, friendly, and stateful virtual assistant for "HD Fitness and Yoga" who remembers the conversation context.
+EN_SYSTEM_PROMPT = """**Your Role:** You are a smart, context-aware virtual assistant for "HD Fitness and Yoga".
 
-**TASK:**
-Use the **CONVERSATION HISTORY** and the provided **REFERENCE TEXT** to accurately and naturally answer the user's current question.
+**THE ULTIMATE RULE: SYNTHESIZE FOR COMPLETENESS**
+Your most important task is to **synthesize information from ALL provided REFERENCE TEXT snippets** to create the most complete and comprehensive answer possible. Do not stop at the first piece of information you find.
 
 **PROCESSING RULES:**
-1.  **USE CONTEXT:** Always review previous messages in the history to understand the user's intent. For example, if the user mentioned "gym" and then asks "what is the price?", understand they are asking for the gym price.
-2.  **DIRECT ANSWERS FIRST:** Provide a direct answer to the question if possible.
-3.  **FIND RELATED INFO:** If a direct answer isn't available, provide the most relevant information from the reference text.
-4.  **WHEN NO INFO EXISTS:** Only if both the history and reference text lack information, return the exact string `NO_INFO_FOUND`.
+1.  **USE CONTEXT:** Always review the **CONVERSATION HISTORY** to understand the user's intent.
+2.  **SYNTHESIZE INFORMATION:** When answering, combine details from different text snippets if necessary. For example, if the user asks about "promotional price", you must find general info about the promotion AND find the detailed price lists for each customer group to provide a full answer.
+3.  **ASK FOR CLARIFICATION:** If a question is ambiguous (e.g., "what's the price?") and the text contains multiple prices, ask the user to clarify which group they belong to (Student, New, or Returning Customer?).
+4.  **WHEN NO INFO EXISTS:** Only after reviewing all documents and finding no relevant info, return the exact string `NO_INFO_FOUND`.
 5.  **LANGUAGE:** Always respond in English.
 """
 
 # --- Khởi tạo các mô hình với System Prompt tương ứng ---
-# Cách làm này giúp quản lý prompt sạch sẽ hơn
 model_vi = genai.GenerativeModel('gemini-1.5-flash', system_instruction=VI_SYSTEM_PROMPT)
 model_en = genai.GenerativeModel('gemini-1.5-flash', system_instruction=EN_SYSTEM_PROMPT)
 
@@ -65,44 +63,39 @@ def get_chatbot_response(user_query: str, history: list) -> str:
     print(f"\nNhận câu hỏi: '{user_query}'")
     print(f"Lịch sử có: {len(history)} tin nhắn")
 
-    # 1. Phát hiện ngôn ngữ (đơn giản hóa, có thể cải thiện thêm nếu cần)
-    lang = 'vi' # Mặc định là tiếng Việt
+    # 1. Phát hiện ngôn ngữ
+    lang = 'vi'
     try:
         if user_query:
             lang_detected = detect(user_query)
             if lang_detected != 'vi':
                 lang = 'en'
     except LangDetectException:
-        lang = 'en' # Nếu không chắc, ưu tiên tiếng Anh cho các từ ngắn
+        lang = 'en'
     
     print(f"=> Ngôn ngữ được xác định: {lang}")
     
-    # 2. Chọn mô hình và thông tin liên hệ dựa trên ngôn ngữ
+    # 2. Chọn mô hình và thông tin liên hệ
     if lang == 'en':
         model = model_en
-        contact_info_text = (
-            "I'm sorry, I don't have that specific information. "
-            "For more details, please contact my human colleagues:\n\n"
-            "- Official Zalo: HD fitness and yoga, number 033244646\n"
-        )
+        contact_info_text = "I'm sorry, I couldn't find detailed information on that. For more specifics, please contact my human colleagues via Zalo at 033244646."
     else:
         model = model_vi
-        contact_info_text = (
-            "Xin lỗi, tôi chưa có thông tin cụ thể về vấn đề này. "
-            "Để biết chi tiết, bạn vui lòng liên hệ các đồng nghiệp của tôi qua Zalo 033244646 nhé."
-        )
+        contact_info_text = "Xin lỗi, tôi không tìm thấy thông tin chi tiết về vấn đề này. Để biết cụ thể hơn, bạn vui lòng liên hệ các đồng nghiệp của tôi qua Zalo 033244646 nhé."
 
-    # 3. Tìm kiếm thông tin trong cơ sở tri thức (RAG) DỰA TRÊN CÂU HỎI HIỆN TẠI
-    print("=> Tiến hành tìm kiếm RAG cho câu hỏi hiện tại...")
-    results = collection.query(query_texts=[user_query], n_results=5) 
+    # 3. Tìm kiếm thông tin trong cơ sở tri thức (RAG)
+    print("=> Tiến hành tìm kiếm RAG...")
+    # Tăng số lượng kết quả để có cơ hội lấy được tất cả các phần liên quan của chương trình khuyến mãi
+    results = collection.query(query_texts=[user_query], n_results=10) 
 
     context_data = None
     if results and results['documents'] and results['documents'][0]:
-        context_data = "\n---\n".join(results['documents'][0])
+        # Dùng set để loại bỏ các chunk trùng lặp trước khi join
+        unique_docs = list(dict.fromkeys(results['documents'][0]))
+        context_data = "\n---\n".join(unique_docs)
         print("=> Đã tìm thấy ngữ cảnh từ RAG.")
     
-    # 4. Tạo prompt mới kết hợp RAG và câu hỏi hiện tại
-    # AI sẽ dựa vào lịch sử trò chuyện và được cung cấp thêm ngữ cảnh RAG này
+    # 4. Tạo prompt cuối cùng
     final_prompt = f"""
 **TÀI LIỆU THAM KHẢO BỔ SUNG (dựa trên câu hỏi hiện tại của bạn):**
 ---
@@ -112,12 +105,9 @@ def get_chatbot_response(user_query: str, history: list) -> str:
 **Câu hỏi hiện tại của bạn:** "{user_query}"
 """
 
-    # 5. Khởi tạo phiên chat với lịch sử và gửi prompt mới
+    # 5. Khởi tạo phiên chat và gửi prompt
     try:
-        # Bắt đầu phiên chat với toàn bộ lịch sử trước đó
         chat_session = model.start_chat(history=history)
-        
-        # Gửi câu hỏi MỚI (đã được bổ sung ngữ cảnh RAG)
         response = chat_session.send_message(final_prompt)
         response_text = response.text.strip()
         print(f"=> Gemini đã trả lời: '{response_text}'")
@@ -133,13 +123,11 @@ def get_chatbot_response(user_query: str, history: list) -> str:
         return contact_info_text
 
 
-# --- Cập nhật Endpoint API để nhận lịch sử ---
+# --- Endpoint API ---
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
     user_message = data.get('message')
-    
-    # NHẬN LỊCH SỬ TỪ REQUEST, nếu không có thì là list rỗng
     history = data.get('history', []) 
 
     if not user_message:

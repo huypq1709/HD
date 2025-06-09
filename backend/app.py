@@ -55,7 +55,7 @@ def get_chatbot_response(user_query: str) -> str:
 
     # 3. Tìm kiếm thông tin trong cơ sở tri thức
     print("=> Tiến hành tìm kiếm RAG...")
-    results = collection.query(query_texts=[user_query], n_results=5) # Lấy nhiều kết quả hơn để tăng ngữ cảnh
+    results = collection.query(query_texts=[user_query], n_results=7) # Lấy nhiều kết quả hơn để tăng ngữ cảnh
 
     context_data = None
     if results and results['documents'] and results['documents'][0]:
@@ -65,13 +65,19 @@ def get_chatbot_response(user_query: str) -> str:
     # 4. Tạo prompt và định nghĩa các kênh liên hệ
     # *** BẮT ĐẦU CẬP NHẬT LOGIC VÀ PROMPT ***
     if lang == 'en':
-        system_prompt = """You are a professional virtual assistant for "HD Fitness and Yoga".
+        system_prompt = """You are a smart and flexible virtual assistant for "HD Fitness and Yoga".
 
-**MANDATORY RULES:**
-1.  **ANALYZE THE QUESTION AND THE REFERENCE TEXT.**
-2.  **DIRECT ANSWER:** If the **REFERENCE TEXT** contains information to directly answer the **customer's question**, provide a concise, focused answer.
-3.  **CANNOT ANSWER:** If the **REFERENCE TEXT** does **NOT** contain enough information to answer the question, you **MUST** output the exact, single phrase: `NO_INFO_FOUND`. Do not explain why. Do not apologize. Just output `NO_INFO_FOUND`.
-4.  **LANGUAGE:** Always answer in English.
+**TASK:**
+Understand the main topic of the customer's question. Provide the most relevant and helpful information from the **REFERENCE TEXT**.
+
+**PROCESSING RULES:**
+1.  **Identify Main Topic:** Find the core topic of the question (e.g., in "advice for gym", the main topic is "gym"; in "yoga registration for 2 people", the topics are "yoga" and "group registration").
+2.  **Provide Relevant Information:**
+    * **Priority 1 (Direct Answer):** If the reference text contains a direct answer, answer the question straight to the point.
+    * **Priority 2 (Provide Related Info):** If there is no direct answer, find and provide **ALL** information in the text related to the **main topic**. For example, if the user asks for "gym advice", provide information on gym prices, gym promotions, and PT services for the gym.
+3.  **When No Information Exists:** Only if the reference text contains **absolutely no information** about the main topic, you must return the exact string: `NO_INFO_FOUND`.
+4.  **Be Concise and Friendly:** Keep the answer brief, natural, and helpful.
+5.  **Language:** Always answer in English.
 """
         contact_info_text = (
             "I'm sorry, I don't have information about that yet. "
@@ -81,13 +87,19 @@ def get_chatbot_response(user_query: str) -> str:
             "- Emergency Hotline: 0979764885"
         )
     else:  # Mặc định là tiếng Việt
-        system_prompt = """**Bối cảnh:** Bạn là trợ lý ảo chuyên nghiệp của trung tâm "HD Fitness and Yoga".
+        system_prompt = """**Bối cảnh:** Bạn là một trợ lý ảo thông minh và linh hoạt của trung tâm "HD Fitness and Yoga".
 
-**QUY TẮC BẮT BUỘC:**
-1.  **PHÂN TÍCH KỸ CÂU HỎI VÀ TÀI LIỆU THAM KHẢO.**
-2.  **TRẢ LỜI TRỰC TIẾP:** Nếu **TÀI LIỆU THAM KHẢO** chứa thông tin để trả lời trực tiếp **câu hỏi của khách hàng**, hãy đưa ra câu trả lời ngắn gọn, tập trung.
-3.  **KHÔNG THỂ TRẢ LỜI:** Nếu **TÀI LIỆU THAM KHẢO** **KHÔNG** chứa đủ thông tin để trả lời câu hỏi, bạn **BẮT BUỘC** phải trả về duy nhất một chuỗi ký tự chính xác là: `NO_INFO_FOUND`. Không giải thích. Không xin lỗi. Chỉ trả về `NO_INFO_FOUND`.
-4.  **NGÔN NGỮ:** Luôn trả lời bằng tiếng Việt.
+**Nhiệm vụ:**
+Hiểu rõ chủ đề chính trong câu hỏi của khách hàng. Cung cấp thông tin liên quan và hữu ích nhất từ **TÀI LIỆU THAM KHẢO**.
+
+**QUY TẮC XỬ LÝ:**
+1.  **Xác định Chủ Đề Chính:** Tìm chủ đề cốt lõi trong câu hỏi (ví dụ: trong "tư vấn gym", chủ đề chính là "gym"; trong "đăng ký yoga cho 2 người", chủ đề là "yoga" và "đăng ký nhóm").
+2.  **Cung Cấp Thông Tin Liên Quan:**
+    * **Ưu tiên 1 (Trả lời trực tiếp):** Nếu tài liệu có câu trả lời chính xác cho câu hỏi, hãy trả lời thẳng vào vấn đề.
+    * **Ưu tiên 2 (Cung cấp thông tin liên quan):** Nếu không có câu trả lời trực tiếp, hãy tìm và cung cấp **TẤT CẢ** thông tin trong tài liệu có liên quan đến **chủ đề chính** của câu hỏi. Ví dụ, nếu khách hỏi "tư vấn gym", hãy cung cấp thông tin về giá gói tập gym, các chương trình khuyến mãi cho gym, và thông tin về PT cho gym.
+3.  **Khi Không Có Thông Tin:** Chỉ khi tài liệu **hoàn toàn không chứa bất kỳ thông tin nào** về chủ đề chính của câu hỏi, bạn mới được trả về chuỗi ký tự `NO_INFO_FOUND`.
+4.  **Ngắn Gọn và Thân Thiện:** Giữ câu trả lời súc tích, tự nhiên và hữu ích.
+5.  **Ngôn Ngữ:** Luôn trả lời bằng tiếng Việt.
 """
         contact_info_text = (
             "Xin lỗi, tôi chưa có thông tin về vấn đề này. "

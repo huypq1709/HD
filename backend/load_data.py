@@ -1,7 +1,8 @@
 import os
 import chromadb
+# THAY ĐỔI: Thêm MarkdownHeaderTextSplitter
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter, MarkdownHeaderTextSplitter
 
 # --- Cấu hình ---
 KNOWLEDGE_DIR = "data"
@@ -11,7 +12,7 @@ COLLECTION_NAME = "customer_service_qa"
 
 def main():
     """
-    Hàm chính để đọc, chia nhỏ dữ liệu từ các file .txt và nạp vào ChromaDB.
+    Hàm chính để đọc, chia nhỏ dữ liệu từ các file .md và nạp vào ChromaDB.
     """
     print("--- Bắt đầu quá trình nạp dữ liệu vào cơ sở tri thức ---")
 
@@ -26,16 +27,16 @@ def main():
     )
     print("=> Truy cập collection thành công.")
 
-    # 3. THAY ĐỔI 1: Sử dụng Document Loaders của Langchain để đọc tất cả file
+    # 3. Đọc tất cả file .md
     if not os.path.exists(KNOWLEDGE_DIR):
         print(f"Lỗi: Thư mục '{KNOWLEDGE_DIR}' không tồn tại.")
         return
 
     print("\n--- Bắt đầu đọc và xử lý các file kiến thức ---")
-    # Tự động tìm và đọc tất cả các file .txt trong thư mục
     loader = DirectoryLoader(
         KNOWLEDGE_DIR,
-        glob="**/*.txt",
+        # *** THAY ĐỔI TẠI ĐÂY: Đọc file .md thay vì .txt ***
+        glob="**/*.md", 
         loader_cls=TextLoader,
         loader_kwargs={'encoding': 'utf-8'}
     )
@@ -47,22 +48,32 @@ def main():
 
     print(f"Đã tìm thấy {len(documents)} file trong thư mục '{KNOWLEDGE_DIR}'.")
 
-    # 4. THAY ĐỔI 2: Chia nhỏ văn bản (Chunking)
-    # Chia các tài liệu lớn thành các đoạn nhỏ hơn để tìm kiếm chính xác hơn
-    print("\n--- Bắt đầu chia nhỏ tài liệu ---")
+    # 4. Chia nhỏ văn bản (Chunking) theo cấu trúc Markdown
+    print("\n--- Bắt đầu chia nhỏ tài liệu theo cấu trúc Markdown ---")
+    headers_to_split_on = [
+        ("#", "Header 1"),
+        ("##", "Header 2"),
+        ("###", "Header 3"),
+    ]
+    markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
+    
+    # Vì loader trả về list documents, ta xử lý từng cái một
+    md_header_splits = []
+    for doc in documents:
+        md_header_splits.extend(markdown_splitter.split_text(doc.page_content))
+
+    # Chia nhỏ thêm nếu các chunk vẫn còn quá lớn
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,  # Mỗi chunk có tối đa 1000 ký tự
-        chunk_overlap=200  # Các chunk sẽ có 200 ký tự chồng lên nhau để không mất ngữ cảnh
+        chunk_size=1000,
+        chunk_overlap=100
     )
-    chunks = text_splitter.split_documents(documents)
+    chunks = text_splitter.split_documents(md_header_splits)
     print(f"=> Đã chia {len(documents)} tài liệu thành {len(chunks)} đoạn văn (chunks).")
 
-    # 5. THAY ĐỔI 3: Nạp các chunks vào ChromaDB
+    # 5. Nạp các chunks vào ChromaDB
     if chunks:
         print("\n--- Bắt đầu nạp dữ liệu (chunks) vào ChromaDB ---")
-        ids = [f"chunk_{i}" for i in range(len(chunks))]  # Tạo ID duy nhất cho mỗi chunk
-
-        # Lấy nội dung và metadata từ các chunks
+        ids = [f"chunk_{i}" for i in range(len(chunks))]
         chunk_contents = [chunk.page_content for chunk in chunks]
         chunk_metadatas = [chunk.metadata for chunk in chunks]
 
@@ -77,11 +88,8 @@ def main():
 
 
 if __name__ == '__main__':
-    # Xóa thư mục DB cũ để đảm bảo dữ liệu mới được nạp sạch
     if os.path.exists(PERSIST_DIR):
         import shutil
-
         print(f"Đang xóa cơ sở dữ liệu cũ tại '{PERSIST_DIR}'...")
         shutil.rmtree(PERSIST_DIR)
-
     main()

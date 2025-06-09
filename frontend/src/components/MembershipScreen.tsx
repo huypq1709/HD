@@ -128,6 +128,19 @@ export function MembershipScreen({
                 displayedDiscountPercentage: 0,
             };
         }
+        // *** BẮT ĐẦU SỬA: XỬ LÝ TRƯỜNG HỢP GÓI 1 NGÀY CỦA GYM ***
+    // Giả định '1_day' là membershipId cho gói 1 ngày.
+    // Bạn hãy thay thế '1_day' bằng ID chính xác nếu cần.
+        if (membershipId === '1 day') {
+            const dayPassPrice = 60000;
+            return {
+                standardPriceFormatted: formatVND(dayPassPrice),
+                finalPriceFormatted: formatVND(dayPassPrice),
+                hasPromotionalDiscount: false,
+                displayedDiscountPercentage: 0,
+            };
+        }
+    // *** KẾT THÚC SỬA ***
 
         const months = DURATION_IN_MONTHS[membershipId];
         if (months === undefined) {

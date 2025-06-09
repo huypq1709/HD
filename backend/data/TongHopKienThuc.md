@@ -8,8 +8,8 @@
 - [cite_start]Hội viên có thể chủ động tập luyện trong khung giờ hoạt động. 
 
 ### Thông Tin Liên Hệ Hỗ Trợ
-- [cite_start]**Kênh chính (Thắc mắc chung):** Zalo "HD fitness and yoga", số điện thoại 033244646. 
-- [cite_start]**Hỗ trợ kỹ thuật:** Zalo số 0971166684. 
+- [cite_start]**Kênh chính:** Zalo "HD FFitness and Yoga", số điện thoại 033244646. 
+- [cite_start]**Hỗ trợ kỹ thuật:** Zalo 0971166684. 
 - [cite_start]**Hotline (Khẩn cấp):** 0979764885. 
 
 ### Tiện ích
@@ -23,6 +23,7 @@
 
 ### A. Giá Gói Tập Gym
 Dưới đây là thông tin chi tiết và bảng giá tư vấn cho các gói tập Gym (giá niêm yết, chưa bao gồm khuyến mãi):
+- [cite_start]**Gói 1 ngày** 60.000đ
 - [cite_start]**Gói 1 tháng:** 600.000đ 
 - [cite_start]**Gói 3 tháng:** 1.620.000đ 
 - [cite_start]**Gói 6 tháng:** 3.060.000đ 
@@ -36,14 +37,14 @@ Dưới đây là thông tin chi tiết và bảng giá tư vấn cho các gói 
 - **Gói 12 tháng:** 5.760.000đ
 
 ### C. Gói Tập Lẻ
-- [cite_start]**Giá:** 60.000đ cho một buổi tập tự do (áp dụng cho cả Gym và Yoga). 
+- [cite_start]**Giá:** 60.000đ cho một buổi tập tự do (chỉ áp dụng cho gym). 
 
 ---
 
 ## 3. Chương Trình Khuyến Mãi "Chào Hè 2025"
 
 - [cite_start]**Thời hạn áp dụng:** Cho tất cả khách hàng đăng ký gói Gym trước ngày 30/06/2025. 
-- [cite_start]**Phân loại ưu đãi:** Dành cho 3 nhóm: Học sinh - Sinh viên, Khách hàng mới, và Khách hàng cũ. 
+- [cite_start]**Phân loại ưu đãi:** Dành cho 3 nhóm: Học sinh - Sinh viên, Lần đầu tập, và Khách hàng cũ. 
 - [cite_start]**Khuyến mãi nhóm:** Hiện tại không có chương trình khuyến mãi riêng cho việc đăng ký theo nhóm. 
 
 ### A. Ưu đãi cho Khách hàng mới là Học sinh - Sinh viên (HSSV)
@@ -71,7 +72,7 @@ Dưới đây là thông tin chi tiết và bảng giá tư vấn cho các gói 
 
 ### A. Huấn luyện viên của trung tâm
 - [cite_start]Có đội ngũ PT chuyên nghiệp hỗ trợ. 
-- [cite_start]**Liên hệ tư vấn và báo giá:** PT Hiến Nguyễn qua Zalo số 0333458122. 
+- [cite_start]**Liên hệ tư vấn và báo giá:** PT Hiến Nguyễn qua Zalo 0333458122. 
 - [cite_start]**Ưu đãi đặc biệt:** Được tập thử miễn phí 2 buổi với PT trước khi đăng ký. 
 
 ### B. Huấn luyện viên cá nhân từ bên ngoài

@@ -23,14 +23,13 @@ const MY_BANK_NAME_VIETQR_ID = "TPB"; // TPBank
 const MY_ACCOUNT_HOLDER = "PHAM QUANG HUY";
 const PAYMENT_UI_TIMEOUT_SECONDS = 120; // 2 phút
 
-// Thêm object giá gói tập
-// const MEMBERSHIP_PRICES: { [key: string]: number } = {
-//     "1 day": 60000,
-//     "1 month": 600000,
-//     "3 months": 1620000,
-//     "6 months": 3060000,
-//     "1 year": 5760000,
-// };
+// Thêm object giá gói tập cho Yoga
+const YOGA_BASE_PRICES: { [key: string]: number } = {
+    "1 month": 600000,
+    "3 months": 1620000,
+    "6 months": 3060000,
+    "1 year": 5760000,
+};
 
 // Hàm tính giá gói tập giống MembershipScreen
 // const calculateMembershipPrice = (membershipId: string, customerType: string): number => {
@@ -254,6 +253,18 @@ export function PaymentScreen({
         }
     }, [paymentStatus, language, nextStep, resetToIntro, resetFormData, stopPolling, stopTimer]);
 
+    // Helper để lấy giá hiển thị (dùng cho hiển thị tóm tắt đơn hàng nếu cần)
+    const getDisplayPrice = () => {
+        if (formData.service === "yoga") {
+            const basePrice = YOGA_BASE_PRICES[formData.membership];
+            if (!basePrice) return "...";
+            return basePrice.toLocaleString("vi-VN") + " VND";
+        }
+        // Gym: lấy từ paymentDetails.expectedAmount trả về từ backend
+        if (paymentDetails.expectedAmount)
+            return paymentDetails.expectedAmount.toLocaleString("vi-VN") + " VND";
+        return "...";
+    };
 
     // Các hàm helper và JSX render giữ nguyên như bạn đã có
     const getMembershipNameDisplay = (membershipId: string, lang: string) => { /* ... */ return membershipId; };
@@ -276,7 +287,7 @@ export function PaymentScreen({
                         {cleanServiceName(formData.service)} - {getMembershipNameDisplay(formData.membership, language)}
                     </span>
                     <span className="font-semibold text-blue-600">
-                        {paymentDetails.expectedAmount ? paymentDetails.expectedAmount.toLocaleString("vi-VN") + " VND" : "..."}
+                        {getDisplayPrice()}
                     </span>
                 </div>
             </div>

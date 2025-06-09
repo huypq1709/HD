@@ -50,6 +50,13 @@ const PROMO_DISCOUNTS_NEW_CUSTOMER: { [key: string]: number } = {
     "1 year": 0.30, // 30%
 };
 
+const YOGA_BASE_PRICES: { [key: string]: number } = {
+    "1 month": 600000,
+    "3 months": 1620000,
+    "6 months": 3060000,
+    "1 year": 5760000,
+};
+
 const formatVND = (value: number): string => {
     return new Intl.NumberFormat('de-DE').format(value) + " VND";
 };
@@ -102,12 +109,21 @@ export function MembershipScreen({
         }
     };
 
-    const calculateMembershipPrice = (membershipId: string, customerType: string): MembershipPriceDetails => {
-        if (membershipId === "1 day") {
-            const price = formatVND(DAILY_PRICE_VND);
+    const calculateMembershipPrice = (membershipId: string, customerType: string, service?: string): MembershipPriceDetails => {
+        if (service === "yoga") {
+            const basePrice = YOGA_BASE_PRICES[membershipId];
+            if (!basePrice) {
+                const notAvailable = language === "en" ? "N/A" : "Không có giá";
+                return {
+                    standardPriceFormatted: notAvailable,
+                    finalPriceFormatted: notAvailable,
+                    hasPromotionalDiscount: false,
+                    displayedDiscountPercentage: 0,
+                };
+            }
             return {
-                standardPriceFormatted: price,
-                finalPriceFormatted: price,
+                standardPriceFormatted: formatVND(basePrice),
+                finalPriceFormatted: formatVND(basePrice),
                 hasPromotionalDiscount: false,
                 displayedDiscountPercentage: 0,
             };
@@ -170,7 +186,7 @@ export function MembershipScreen({
 
     const handleSelect = (membershipId: string) => {
         // Tính toán chi tiết giá cho gói tập đã chọn
-        const priceDetails = calculateMembershipPrice(membershipId, formData.customerType);
+        const priceDetails = calculateMembershipPrice(membershipId, formData.customerType, formData.service);
 
         // Cập nhật formData với ID gói tập và các thông tin giá
         updateFormData("membership", membershipId);
@@ -193,7 +209,7 @@ export function MembershipScreen({
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {initialMemberships.map((membership) => {
-                    const priceDetails = calculateMembershipPrice(membership.id, formData.customerType);
+                    const priceDetails = calculateMembershipPrice(membership.id, formData.customerType, formData.service);
                     return (
                         <button
                             key={membership.id}

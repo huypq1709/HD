@@ -19,46 +19,62 @@ def calculate_membership_price(membership_type, customer_type=None, service_type
             return 60000
         return 0  # No 1-day pass for yoga
 
-    # Base monthly price is same for both gym and yoga
-    BASE_MONTHLY_PRICE_VND = 600000
-    
-    DURATION_IN_MONTHS = {
-        "1 month": 1,
-        "3 months": 3,
-        "6 months": 6,
-        "1 year": 12,
-    }
-    STANDARD_DURATION_DISCOUNTS = {
-        "1 month": 0,
-        "3 months": 0.10,
-        "6 months": 0.15,
-        "1 year": 0.20,
-    }
-    PROMO_DISCOUNTS_OLD_CUSTOMER = {
-        "1 month": 0.05,
-        "3 months": 0.10,
-        "6 months": 0.15,
-        "1 year": 0.15,
-    }
-    PROMO_DISCOUNTS_NEW_CUSTOMER = {
-        "1 month": 0.10,
-        "3 months": 0.15,
-        "6 months": 0.25,
-        "1 year": 0.30,
-    }
-    months = DURATION_IN_MONTHS.get(membership_type)
-    if not months:
-        return 0
-    total_gross = BASE_MONTHLY_PRICE_VND * months
-    standard_discount = STANDARD_DURATION_DISCOUNTS.get(membership_type, 0)
-    price_after_standard = total_gross * (1 - standard_discount)
-    promo_discount = 0
-    if customer_type == "returning":
-        promo_discount = PROMO_DISCOUNTS_OLD_CUSTOMER.get(membership_type, 0)
-    elif customer_type == "new":
-        promo_discount = PROMO_DISCOUNTS_NEW_CUSTOMER.get(membership_type, 0)
-    final_price = price_after_standard * (1 - promo_discount)
-    return round(final_price)
+    # Gym: base price per month, discounts như cũ
+    if service_type == "gym":
+        BASE_MONTHLY_PRICE_VND = 600000
+        DURATION_IN_MONTHS = {
+            "1 month": 1,
+            "3 months": 3,
+            "6 months": 6,
+            "1 year": 12,
+        }
+        STANDARD_DURATION_DISCOUNTS = {
+            "1 month": 0,
+            "3 months": 0.10,
+            "6 months": 0.15,
+            "1 year": 0.20,
+        }
+        months = DURATION_IN_MONTHS.get(membership_type)
+        if not months:
+            return 0
+        total_gross = BASE_MONTHLY_PRICE_VND * months
+        standard_discount = STANDARD_DURATION_DISCOUNTS.get(membership_type, 0)
+        price_after_standard = total_gross * (1 - standard_discount)
+        # Áp dụng promo nếu có
+        promo_discount = 0
+        if customer_type == "returning":
+            PROMO_DISCOUNTS_OLD_CUSTOMER = {
+                "1 month": 0.05,
+                "3 months": 0.10,
+                "6 months": 0.15,
+                "1 year": 0.15,
+            }
+            promo_discount = PROMO_DISCOUNTS_OLD_CUSTOMER.get(membership_type, 0)
+        elif customer_type == "new":
+            PROMO_DISCOUNTS_NEW_CUSTOMER = {
+                "1 month": 0.10,
+                "3 months": 0.15,
+                "6 months": 0.25,
+                "1 year": 0.30,
+            }
+            promo_discount = PROMO_DISCOUNTS_NEW_CUSTOMER.get(membership_type, 0)
+        final_price = price_after_standard * (1 - promo_discount)
+        return round(final_price)
+
+    # Yoga: chỉ trả về giá gốc từng gói, không giảm giá
+    if service_type == "yoga":
+        YOGA_BASE_PRICES = {
+            "1 month": 600000,
+            "3 months": 1620000,
+            "6 months": 3060000,
+            "1 year": 5760000,
+        }
+        base_price = YOGA_BASE_PRICES.get(membership_type)
+        if not base_price:
+            return 0
+        return base_price
+
+    return 0  # fallback nếu không hợp lệ
 
 @app.route('/initiate-payment', methods=['POST'])
 def initiate_payment_session():

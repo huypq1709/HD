@@ -38,24 +38,43 @@ def get_chatbot_response(user_query: str) -> str:
 
     # 1. Phát hiện ngôn ngữ
     try:
-        lang = detect(user_query)
-        print(f"=> Ngôn ngữ được phát hiện: {lang}")
+        # Tăng cường nhận diện: Nếu câu quá ngắn, khó xác định, ưu tiên tiếng Anh
+        if len(user_query_lower.split()) < 3:
+             # Các từ ngắn phổ biến của tiếng Việt
+            vietnamese_short_words = ["giá", "vé", "tập", "gym", "yoga", "hỏi", "có", "không"]
+            if any(word in user_query_lower for word in vietnamese_short_words):
+                 lang = 'vi'
+            else:
+                 lang = detect(user_query)
+        else:
+            lang = detect(user_query)
+
+        # Mặc định là tiếng Anh nếu không phải 'vi'
+        if lang != 'vi':
+            lang = 'en'
+            
+        print(f"=> Ngôn ngữ được xác định: {lang}")
     except LangDetectException:
-        print("=> Không phát hiện được ngôn ngữ, mặc định là tiếng Việt.")
-        lang = 'vi'
+        print("=> Không phát hiện được ngôn ngữ, mặc định là tiếng Anh.")
+        lang = 'en'
 
     # 2. Xử lý lời chào hỏi đơn giản
-    greetings_vi = ["hi", "hello", "chào", "xin chào", "chào bạn", "chào shop", "alo"]
-    greetings_en = ["hi", "hello", "hey"]
-    if (lang == 'vi' and user_query_lower in greetings_vi) or \
-       (lang == 'en' and user_query_lower in greetings_en):
-        if lang == 'en':
-            return "Hello! I am the virtual assistant for HD Fitness and Yoga. How can I help you today?"
+    greetings_vi = ["chào", "xin chào", "chào bạn", "chào shop", "alo"]
+    greetings_en = ["hi", "hello", "hey", "yo"]
+    if user_query_lower in greetings_vi:
+        lang = 'vi'
+    elif user_query_lower in greetings_en:
+        lang = 'en'
+
+    if lang == 'vi' and user_query_lower in greetings_vi:
         return "Chào bạn, tôi là trợ lý ảo của HD Fitness and Yoga. Tôi có thể giúp gì cho bạn?"
+    if lang == 'en' and user_query_lower in greetings_en:
+        return "Hello! I am the virtual assistant for HD Fitness and Yoga. How can I help you today?"
+
 
     # 3. Tìm kiếm thông tin trong cơ sở tri thức
     print("=> Tiến hành tìm kiếm RAG...")
-    results = collection.query(query_texts=[user_query], n_results=7) # Lấy nhiều kết quả hơn để tăng ngữ cảnh
+    results = collection.query(query_texts=[user_query], n_results=7) 
 
     context_data = None
     if results and results['documents'] and results['documents'][0]:
@@ -65,44 +84,40 @@ def get_chatbot_response(user_query: str) -> str:
     # 4. Tạo prompt và định nghĩa các kênh liên hệ
     # *** BẮT ĐẦU CẬP NHẬT LOGIC VÀ PROMPT ***
     if lang == 'en':
-        system_prompt = """You are a smart and flexible virtual assistant for "HD Fitness and Yoga".
+        system_prompt = """**Your Role:** You are a helpful, smart assistant for "HD Fitness and Yoga".
+
+**RULE #1: LANGUAGE IS CRITICAL.**
+- The user is asking in English.
+- You **MUST** write your entire response in **English**. No exceptions.
 
 **TASK:**
-Understand the main topic of the customer's question. Provide the most relevant and helpful information from the **REFERENCE TEXT**.
-
-**PROCESSING RULES:**
-1.  **Identify Main Topic:** Find the core topic of the question (e.g., in "advice for gym", the main topic is "gym"; in "yoga registration for 2 people", the topics are "yoga" and "group registration").
-2.  **Provide Relevant Information:**
-    * **Priority 1 (Direct Answer):** If the reference text contains a direct answer, answer the question straight to the point.
-    * **Priority 2 (Provide Related Info):** If there is no direct answer, find and provide **ALL** information in the text related to the **main topic**. For example, if the user asks for "gym advice", provide information on gym prices, gym promotions, and PT services for the gym.
-3.  **When No Information Exists:** Only if the reference text contains **absolutely no information** about the main topic, you must return the exact string: `NO_INFO_FOUND`.
-4.  **Be Concise and Friendly:** Keep the answer brief, natural, and helpful.
-5.  **Language:** Always answer in English.
+- Understand the user's question.
+- Based **ONLY** on the **REFERENCE TEXT** provided, answer the question.
+- If the question is generic (e.g., "price", "info"), and the text has multiple prices (gym, yoga), ask for clarification.
+- If the text has **no relevant information** to answer the question, you **MUST** return the exact string: `NO_INFO_FOUND`.
 """
         contact_info_text = (
-            "I'm sorry, I don't have information about that yet. "
-            "For details, please contact my human colleagues through these channels:\n\n"
+            "I'm sorry, I don't have that specific information. "
+            "For more details, please contact my human colleagues:\n\n"
             "- Official Zalo: HD fitness and yoga, number 033244646\n"
-            "- Technical Support: Zalo, number 0971166684\n"
+            "- Technical Support (Zalo): 0971166684\n"
             "- Emergency Hotline: 0979764885"
         )
     else:  # Mặc định là tiếng Việt
         system_prompt = """**Bối cảnh:** Bạn là một trợ lý ảo thông minh và linh hoạt của trung tâm "HD Fitness and Yoga".
 
-**Nhiệm vụ:**
-Hiểu rõ chủ đề chính trong câu hỏi của khách hàng. Cung cấp thông tin liên quan và hữu ích nhất từ **TÀI LIỆU THAM KHẢO**.
+**QUY TẮC SỐ 1: NGÔN NGỮ LÀ QUAN TRỌNG NHẤT.**
+- Khách hàng đang hỏi bằng tiếng Việt.
+- Bạn **BẮT BUỘC** phải viết toàn bộ câu trả lời bằng **tiếng Việt**.
 
-**QUY TẮC XỬ LÝ:**
-1.  **Xác định Chủ Đề Chính:** Tìm chủ đề cốt lõi trong câu hỏi (ví dụ: trong "tư vấn gym", chủ đề chính là "gym"; trong "đăng ký yoga cho 2 người", chủ đề là "yoga" và "đăng ký nhóm").
-2.  **Cung Cấp Thông Tin Liên Quan:**
-    * **Ưu tiên 1 (Trả lời trực tiếp):** Nếu tài liệu có câu trả lời chính xác cho câu hỏi, hãy trả lời thẳng vào vấn đề.
-    * **Ưu tiên 2 (Cung cấp thông tin liên quan):** Nếu không có câu trả lời trực tiếp, hãy tìm và cung cấp **TẤT CẢ** thông tin trong tài liệu có liên quan đến **chủ đề chính** của câu hỏi. Ví dụ, nếu khách hỏi "tư vấn gym", hãy cung cấp thông tin về giá gói tập gym, các chương trình khuyến mãi cho gym, và thông tin về PT cho gym.
-3.  **Khi Không Có Thông Tin:** Chỉ khi tài liệu **hoàn toàn không chứa bất kỳ thông tin nào** về chủ đề chính của câu hỏi, bạn mới được trả về chuỗi ký tự `NO_INFO_FOUND`.
-4.  **Ngắn Gọn và Thân Thiện:** Giữ câu trả lời súc tích, tự nhiên và hữu ích.
-5.  **Ngôn Ngữ:** Luôn trả lời bằng tiếng Việt.
+**Nhiệm vụ:**
+- Hiểu rõ câu hỏi của khách hàng.
+- Chỉ dựa vào **TÀI LIỆU THAM KHẢO** được cung cấp để trả lời.
+- Nếu câu hỏi quá chung chung (ví dụ: "giá", "thông tin"), và tài liệu có nhiều loại giá (gym, yoga), hãy hỏi lại để làm rõ.
+- Nếu tài liệu **hoàn toàn không chứa thông tin** liên quan, bạn **BẮT BUỘC** phải trả về chuỗi ký tự `NO_INFO_FOUND`.
 """
         contact_info_text = (
-            "Xin lỗi, tôi chưa có thông tin về vấn đề này. "
+            "Xin lỗi, tôi chưa có thông tin cụ thể về vấn đề này. "
             "Để biết chi tiết, bạn vui lòng liên hệ các đồng nghiệp của tôi qua các kênh sau nhé:\n\n"
             "- Zalo chính thức: HD fitness and yoga, số 033244646\n"
             "- Hỗ trợ kỹ thuật: Zalo số 0971166684\n"
@@ -117,21 +132,22 @@ Hiểu rõ chủ đề chính trong câu hỏi của khách hàng. Cung cấp th
     # Nếu có ngữ cảnh, đưa cho AI xử lý
     prompt = f"""{system_prompt}
 
-    **TÀI LIỆU THAM KHẢO:**
-    {context_data}
+**REFERENCE TEXT:**
+---
+{context_data}
+---
 
-    **Câu hỏi của khách hàng:**
-    "{user_query}"
+**User's question:** "{user_query}"
 
-    **Câu trả lời của bạn:**
-    """
+**Your Answer:**
+"""
     try:
         response = model.generate_content(prompt)
         response_text = response.text.strip()
         print(f"=> Gemini đã trả lời: '{response_text}'")
 
         # Kiểm tra xem AI có trả về mã đặc biệt không
-        if response_text == "NO_INFO_FOUND":
+        if "NO_INFO_FOUND" in response_text:
             print("=> Gemini không tìm thấy câu trả lời, hiển thị thông tin liên hệ.")
             return contact_info_text
         else:
@@ -142,8 +158,6 @@ Hiểu rõ chủ đề chính trong câu hỏi của khách hàng. Cung cấp th
         print(f"Lỗi khi gọi Gemini API: {e}")
         # Nếu có lỗi xảy ra với API, cũng trả về thông tin liên hệ
         return contact_info_text
-    # *** KẾT THÚC CẬP NHẬT LOGIC ***
-
 
 # --- Tạo Endpoint (địa chỉ) cho API ---
 @app.route('/chat', methods=['POST'])

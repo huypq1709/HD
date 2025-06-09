@@ -19,15 +19,30 @@
 
 ---
 
-## 2. Chương Trình Khuyến Mãi "Chào Hè 2025"
+## 2. Bảng Giá Dịch Vụ
+
+### A. Giá Gói Tập Gym (Chưa khuyến mãi)
+- **Gói 1 tháng:** 600.000đ
+- **Gói 3 tháng:** 1.620.000đ
+- **Gói 6 tháng:** 3.060.000đ
+- **Gói 12 tháng:** 5.760.000đ
+
+### B. Giá Gói Tập Yoga (Chưa khuyến mãi)
+- **Gói 1 tháng:** 600.000đ
+- **Gói 3 tháng:** 1.620.000đ
+- **Gói 6 tháng:** 3.060.000đ
+- **Gói 12 tháng:** 5.760.000đ
+
+### C. Gói Tập Lẻ
+- **Giá:** 60.000đ cho một buổi tập tự do (chỉ áp dụng cho Gym ).
+
+---
+
+## 3. Chương Trình Khuyến Mãi "Chào Hè 2025"
 
 - **Thời hạn áp dụng:** Cho tất cả khách hàng đăng ký gói Gym hoặc Yoga trước ngày 30/06/2025.
-- **Phân loại ưu đãi:** Dành cho 3 nhóm: Học sinh - Sinh viên, Khách hàng mới, và Khách hàng cũ.
-- **Giá niêm yết (chưa khuyến mãi):**
-  - Gói 1 tháng: 600.000đ
-  - Gói 3 tháng: 1.620.000đ
-  - Gói 6 tháng: 3.060.000đ
-  - Gói 12 tháng: 5.760.000đ
+- **Phân loại ưu đãi:** Dành cho 3 nhóm: Học sinh - Sinh viên, Khách hàng mới, và Khách hàng cũ (chi tiết giảm giá xem ở các mục dưới).
+- **Khuyến mãi nhóm:** Hiện tại không có chương trình khuyến mãi riêng cho việc đăng ký theo nhóm.
 
 ### A. Ưu đãi cho Khách hàng mới là Học sinh - Sinh viên (HSSV)
 *Yêu cầu xuất trình thẻ HSSV còn hiệu lực.*
@@ -48,13 +63,9 @@
 - **Gói 6 tháng:** 2.601.000đ (giảm 15%). Được bảo lưu 3 lần.
 - **Gói 12 tháng:** 4.608.000đ (giảm 20%). Được bảo lưu 6 lần.
 
-### D. Các gói và chính sách khác
-- **Gói theo ngày:** 60.000đ cho một buổi tập tự do.
-- **Khuyến mãi nhóm:** Hiện tại không có chương trình khuyến mãi riêng cho việc đăng ký theo nhóm.
-
 ---
 
-## 3. Huấn Luyện Viên Cá Nhân (PT)
+## 4. Huấn Luyện Viên Cá Nhân (PT)
 
 ### A. Huấn luyện viên của trung tâm
 - Có đội ngũ PT chuyên nghiệp hỗ trợ.
@@ -67,7 +78,7 @@
 
 ---
 
-## 4. Quy Định Chung Tại Phòng Tập
+## 5. Quy Định Chung Tại Phòng Tập
 
 - **Check-in:** Mỗi hội viên chỉ check-in cho chính mình, không check-in hộ.
 - **Sử dụng thiết bị:** Xếp tạ và dụng cụ về đúng vị trí sau khi tập xong.

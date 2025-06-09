@@ -17,7 +17,6 @@ except KeyError:
     exit()
 
 # --- Khởi tạo mô hình Gemini ---
-# Không cần system_instruction ở đây nữa, vì chúng ta sẽ đưa nó vào prompt động
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- Kết nối tới Cơ sở tri thức Vector (ChromaDB) ---
@@ -32,11 +31,8 @@ except Exception as e:
     exit()
 
 
-# --- Hàm logic chính của Chatbot (PHIÊN BẢN ĐA NGÔN NGỮ) ---
+# --- Hàm logic chính của Chatbot ---
 def get_chatbot_response(user_query: str) -> str:
-    """
-    Hàm này nhận câu hỏi, phát hiện ngôn ngữ, tìm kiếm và tạo câu trả lời tương ứng.
-    """
     print(f"\nNhận câu hỏi: '{user_query}'")
     user_query_lower = user_query.lower().strip()
 
@@ -46,75 +42,95 @@ def get_chatbot_response(user_query: str) -> str:
         print(f"=> Ngôn ngữ được phát hiện: {lang}")
     except LangDetectException:
         print("=> Không phát hiện được ngôn ngữ, mặc định là tiếng Việt.")
-        lang = 'vi'  # Mặc định là tiếng Việt nếu không phát hiện được
+        lang = 'vi'
 
     # 2. Xử lý lời chào hỏi đơn giản
     greetings_vi = ["hi", "hello", "chào", "xin chào", "chào bạn", "chào shop", "alo"]
     greetings_en = ["hi", "hello", "hey"]
     if (lang == 'vi' and user_query_lower in greetings_vi) or \
-            (lang == 'en' and user_query_lower in greetings_en):
+       (lang == 'en' and user_query_lower in greetings_en):
         if lang == 'en':
             return "Hello! I am the virtual assistant for HD Fitness and Yoga. How can I help you today?"
         return "Chào bạn, tôi là trợ lý ảo của HD Fitness and Yoga. Tôi có thể giúp gì cho bạn?"
 
     # 3. Tìm kiếm thông tin trong cơ sở tri thức
     print("=> Tiến hành tìm kiếm RAG...")
-    results = collection.query(query_texts=[user_query], n_results=3)
+    results = collection.query(query_texts=[user_query], n_results=5) # Lấy nhiều kết quả hơn để tăng ngữ cảnh
 
     context_data = None
     if results and results['documents'] and results['documents'][0]:
         context_data = "\n---\n".join(results['documents'][0])
-        print(f"Tìm thấy ngữ cảnh, đưa cho Gemini xử lý.")
+        print("Tìm thấy ngữ cảnh, bắt đầu tạo prompt cho Gemini.")
 
-    # 4. Tạo prompt và câu trả lời mặc định dựa trên ngôn ngữ
+    # 4. Tạo prompt và định nghĩa các kênh liên hệ
+    # *** BẮT ĐẦU CẬP NHẬT LOGIC VÀ PROMPT ***
     if lang == 'en':
-        system_prompt = """You are a virtual assistant for HD Fitness and Yoga. Your task is to answer customer questions directly and accurately, based ONLY on the provided reference text.
-- You MUST answer in English.
-- Synthesize information from ALL reference text snippets to provide a complete answer.
-- Do NOT ask questions back to the user. Get straight to the point.
+        system_prompt = """You are a professional virtual assistant for "HD Fitness and Yoga".
+
+**MANDATORY RULES:**
+1.  **ANALYZE THE QUESTION AND THE REFERENCE TEXT.**
+2.  **DIRECT ANSWER:** If the **REFERENCE TEXT** contains information to directly answer the **customer's question**, provide a concise, focused answer.
+3.  **CANNOT ANSWER:** If the **REFERENCE TEXT** does **NOT** contain enough information to answer the question, you **MUST** output the exact, single phrase: `NO_INFO_FOUND`. Do not explain why. Do not apologize. Just output `NO_INFO_FOUND`.
+4.  **LANGUAGE:** Always answer in English.
 """
-        default_response_text = "I am just a small AI chatbot. My boss hasn't told me this information yet. Please contact my boss via the following channels:\n\n"
-        contact_info = (
+        contact_info_text = (
+            "I'm sorry, I don't have information about that yet. "
+            "For details, please contact my human colleagues through these channels:\n\n"
             "- Official Zalo: HD fitness and yoga, number 033244646\n"
             "- Technical Support: Zalo, number 0971166684\n"
             "- Emergency Hotline: 0979764885"
         )
     else:  # Mặc định là tiếng Việt
-        system_prompt = """Bạn là một trợ lý ảo của HD Fitness and Yoga. Nhiệm vụ của bạn là trả lời câu hỏi của khách hàng một cách trực tiếp, chính xác, và đầy đủ nhất có thể, chỉ dựa vào tài liệu tham khảo được cung cấp.
-- Bạn PHẢI trả lời bằng tiếng Việt.
-- Tổng hợp thông tin từ TẤT CẢ các đoạn tài liệu tham khảo để đưa ra câu trả lời hoàn chỉnh.
-- Nghiêm cấm đặt câu hỏi ngược lại cho người dùng.
-- Trả lời thẳng vào vấn đề.
+        system_prompt = """**Bối cảnh:** Bạn là trợ lý ảo chuyên nghiệp của trung tâm "HD Fitness and Yoga".
+
+**QUY TẮC BẮT BUỘC:**
+1.  **PHÂN TÍCH KỸ CÂU HỎI VÀ TÀI LIỆU THAM KHẢO.**
+2.  **TRẢ LỜI TRỰC TIẾP:** Nếu **TÀI LIỆU THAM KHẢO** chứa thông tin để trả lời trực tiếp **câu hỏi của khách hàng**, hãy đưa ra câu trả lời ngắn gọn, tập trung.
+3.  **KHÔNG THỂ TRẢ LỜI:** Nếu **TÀI LIỆU THAM KHẢO** **KHÔNG** chứa đủ thông tin để trả lời câu hỏi, bạn **BẮT BUỘC** phải trả về duy nhất một chuỗi ký tự chính xác là: `NO_INFO_FOUND`. Không giải thích. Không xin lỗi. Chỉ trả về `NO_INFO_FOUND`.
+4.  **NGÔN NGỮ:** Luôn trả lời bằng tiếng Việt.
 """
-        default_response_text = "Tôi chỉ là một mô hình chatbot AI bé nhỏ. Sếp tôi chưa cho tôi biết thông tin này. Vui lòng liên hệ sếp tôi theo các kênh sau nhé:\n\n"
-        contact_info = (
+        contact_info_text = (
+            "Xin lỗi, tôi chưa có thông tin về vấn đề này. "
+            "Để biết chi tiết, bạn vui lòng liên hệ các đồng nghiệp của tôi qua các kênh sau nhé:\n\n"
             "- Zalo chính thức: HD fitness and yoga, số 033244646\n"
             "- Hỗ trợ kỹ thuật: Zalo số 0971166684\n"
             "- Hotline khẩn cấp: 0979764885"
         )
 
-    if context_data:
-        prompt = f"""{system_prompt}
-
-        **TÀI LIỆU THAM KHẢO:**
-        {context_data}
-
-        **Câu hỏi của khách hàng:**
-        "{user_query}"
-
-        **Câu trả lời của bạn:**
-        """
-        try:
-            response = model.generate_content(prompt)
-            print("=> Gemini đã tạo câu trả lời.")
-            return response.text
-        except Exception as e:
-            print(f"Lỗi khi gọi Gemini API: {e}")
-            context_data = None
-
+    # Nếu không tìm thấy ngữ cảnh nào, trả về thông tin liên hệ ngay
     if not context_data:
-        print("Không tìm thấy thông tin, trả về câu trả lời mặc định.")
-        return default_response_text + contact_info
+        print("Không tìm thấy ngữ cảnh nào trong DB, trả về thông tin liên hệ.")
+        return contact_info_text
+
+    # Nếu có ngữ cảnh, đưa cho AI xử lý
+    prompt = f"""{system_prompt}
+
+    **TÀI LIỆU THAM KHẢO:**
+    {context_data}
+
+    **Câu hỏi của khách hàng:**
+    "{user_query}"
+
+    **Câu trả lời của bạn:**
+    """
+    try:
+        response = model.generate_content(prompt)
+        response_text = response.text.strip()
+        print(f"=> Gemini đã trả lời: '{response_text}'")
+
+        # Kiểm tra xem AI có trả về mã đặc biệt không
+        if response_text == "NO_INFO_FOUND":
+            print("=> Gemini không tìm thấy câu trả lời, hiển thị thông tin liên hệ.")
+            return contact_info_text
+        else:
+            # Nếu có câu trả lời, trả về cho người dùng
+            return response_text
+
+    except Exception as e:
+        print(f"Lỗi khi gọi Gemini API: {e}")
+        # Nếu có lỗi xảy ra với API, cũng trả về thông tin liên hệ
+        return contact_info_text
+    # *** KẾT THÚC CẬP NHẬT LOGIC ***
 
 
 # --- Tạo Endpoint (địa chỉ) cho API ---

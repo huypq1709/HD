@@ -13,10 +13,15 @@ print("DEBUG: app1.py - Flask app created and CORS enabled.")
 pending_payments_by_order_id = {}
 PAYMENT_TIMEOUT_SECONDS = 180
 
-def calculate_membership_price(membership_type, customer_type=None):
+def calculate_membership_price(membership_type, customer_type=None, service_type=None):
     if membership_type == "1 day":
-        return 60000
+        if service_type == "gym":
+            return 60000
+        return 0  # No 1-day pass for yoga
+
+    # Base monthly price is same for both gym and yoga
     BASE_MONTHLY_PRICE_VND = 600000
+    
     DURATION_IN_MONTHS = {
         "1 month": 1,
         "3 months": 3,
@@ -68,7 +73,7 @@ def initiate_payment_session():
     customer_type = data.get("customerType")
 
     print(f"[app1.py] Nhận membership_type: {membership_type!r}, customer_type: {customer_type!r}")
-    expected_amount = calculate_membership_price(membership_type, customer_type)
+    expected_amount = calculate_membership_price(membership_type, customer_type, service_type)
     print(f"[app1.py] Tính ra expected_amount: {expected_amount}")
 
     if not service_type or not membership_type:

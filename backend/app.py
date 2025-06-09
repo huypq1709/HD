@@ -16,9 +16,6 @@ except KeyError:
     print("Lỗi: Vui lòng thiết lập biến môi trường GOOGLE_API_KEY.")
     exit()
 
-# --- Khởi tạo mô hình Gemini ---
-model = genai.GenerativeModel('gemini-1.5-flash')
-
 # --- Kết nối tới Cơ sở tri thức Vector (ChromaDB) ---
 print("Đang kết nối tới cơ sở dữ liệu vector...")
 try:
@@ -30,145 +27,125 @@ except Exception as e:
         f"Lỗi: Không thể kết nối hoặc lấy collection từ ChromaDB. Hãy chắc chắn bạn đã chạy file 'load_data.py' trước. Chi tiết: {e}")
     exit()
 
+# --- Định nghĩa System Prompt cho các ngôn ngữ ---
+# Đưa ra ngoài để dễ quản lý và tái sử dụng
+VI_SYSTEM_PROMPT = """**Bối cảnh:** Bạn là một trợ lý ảo thông minh, thân thiện và có khả năng ghi nhớ ngữ cảnh của trung tâm "HD Fitness and Yoga".
 
-# --- Hàm logic chính của Chatbot ---
-def get_chatbot_response(user_query: str) -> str:
-    print(f"\nNhận câu hỏi: '{user_query}'")
-    user_query_lower = user_query.lower().strip()
+**Nhiệm vụ:**
+Dựa vào **LỊCH SỬ TRÒ CHUYỆN** và **TÀI LIỆU THAM KHẢO** được cung cấp để trả lời câu hỏi hiện tại của khách hàng một cách tự nhiên và chính xác.
 
-    # 1. Phát hiện ngôn ngữ
-    try:
-        # Tăng cường nhận diện: Nếu câu quá ngắn, khó xác định, ưu tiên tiếng Anh
-        if len(user_query_lower.split()) < 3:
-             # Các từ ngắn phổ biến của tiếng Việt
-            vietnamese_short_words = ["giá", "vé", "tập", "gym", "yoga", "hỏi", "có", "không"]
-            if any(word in user_query_lower for word in vietnamese_short_words):
-                 lang = 'vi'
-            else:
-                 lang = detect(user_query)
-        else:
-            lang = detect(user_query)
+**QUY TẮC XỬ LÝ:**
+1.  **TẬN DỤNG NGỮ CẢNH:** Luôn xem xét các tin nhắn trước đó trong lịch sử để hiểu ý định của người dùng. Ví dụ, nếu người dùng đã nói "gym" và sau đó hỏi "giá", hãy tự hiểu là họ đang hỏi giá gym.
+2.  **ƯU TIÊN TRẢ LỜI TRỰC TIẾP:** Cung cấp câu trả lời thẳng vào vấn đề.
+3.  **TÌM KIẾM THÔNG TIN LIÊN QUAN:** Nếu không có câu trả lời trực tiếp, hãy cung cấp thông tin liên quan nhất có trong tài liệu.
+4.  **KHI KHÔNG CÓ THÔNG TIN:** Chỉ khi tài liệu và lịch sử đều không có thông tin, hãy trả về chuỗi ký tự `NO_INFO_FOUND`.
+5.  **NGÔN NGỮ:** Luôn trả lời bằng tiếng Việt.
+"""
 
-        # Mặc định là tiếng Anh nếu không phải 'vi'
-        if lang != 'vi':
-            lang = 'en'
-            
-        print(f"=> Ngôn ngữ được xác định: {lang}")
-    except LangDetectException:
-        print("=> Không phát hiện được ngôn ngữ, mặc định là tiếng Anh.")
-        lang = 'en'
-
-    # 2. Xử lý lời chào hỏi đơn giản
-    greetings_vi = ["chào", "xin chào", "chào bạn", "chào shop", "alo"]
-    greetings_en = ["hi", "hello", "hey", "yo"]
-    if user_query_lower in greetings_vi:
-        lang = 'vi'
-    elif user_query_lower in greetings_en:
-        lang = 'en'
-
-    if lang == 'vi' and user_query_lower in greetings_vi:
-        return "Chào bạn, tôi là trợ lý ảo của HD Fitness and Yoga. Tôi có thể giúp gì cho bạn?"
-    if lang == 'en' and user_query_lower in greetings_en:
-        return "Hello! I am the virtual assistant for HD Fitness and Yoga. How can I help you today?"
-
-
-    # 3. Tìm kiếm thông tin trong cơ sở tri thức
-    print("=> Tiến hành tìm kiếm RAG...")
-    results = collection.query(query_texts=[user_query], n_results=7) 
-
-    context_data = None
-    if results and results['documents'] and results['documents'][0]:
-        context_data = "\n---\n".join(results['documents'][0])
-        print("Tìm thấy ngữ cảnh, bắt đầu tạo prompt cho Gemini.")
-
-    # 4. Tạo prompt và định nghĩa các kênh liên hệ
-    # *** BẮT ĐẦU CẬP NHẬT LOGIC VÀ PROMPT ***
-    if lang == 'en':
-        system_prompt = """**Your Role:** You are a helpful, smart assistant for "HD Fitness and Yoga".
-
-**RULE #1: LANGUAGE IS CRITICAL.**
-- The user is asking in English.
-- You **MUST** write your entire response in **English**. No exceptions.
+EN_SYSTEM_PROMPT = """**Your Role:** You are a smart, friendly, and stateful virtual assistant for "HD Fitness and Yoga" who remembers the conversation context.
 
 **TASK:**
-- Understand the user's question.
-- Based **ONLY** on the **REFERENCE TEXT** provided, answer the question.
-- If the question is generic (e.g., "price", "info"), and the text has multiple prices (gym, yoga), ask for clarification.
-- If the text has **no relevant information** to answer the question, you **MUST** return the exact string: `NO_INFO_FOUND`.
+Use the **CONVERSATION HISTORY** and the provided **REFERENCE TEXT** to accurately and naturally answer the user's current question.
+
+**PROCESSING RULES:**
+1.  **USE CONTEXT:** Always review previous messages in the history to understand the user's intent. For example, if the user mentioned "gym" and then asks "what is the price?", understand they are asking for the gym price.
+2.  **DIRECT ANSWERS FIRST:** Provide a direct answer to the question if possible.
+3.  **FIND RELATED INFO:** If a direct answer isn't available, provide the most relevant information from the reference text.
+4.  **WHEN NO INFO EXISTS:** Only if both the history and reference text lack information, return the exact string `NO_INFO_FOUND`.
+5.  **LANGUAGE:** Always respond in English.
 """
+
+# --- Khởi tạo các mô hình với System Prompt tương ứng ---
+# Cách làm này giúp quản lý prompt sạch sẽ hơn
+model_vi = genai.GenerativeModel('gemini-1.5-flash', system_instruction=VI_SYSTEM_PROMPT)
+model_en = genai.GenerativeModel('gemini-1.5-flash', system_instruction=EN_SYSTEM_PROMPT)
+
+
+def get_chatbot_response(user_query: str, history: list) -> str:
+    print(f"\nNhận câu hỏi: '{user_query}'")
+    print(f"Lịch sử có: {len(history)} tin nhắn")
+
+    # 1. Phát hiện ngôn ngữ (đơn giản hóa, có thể cải thiện thêm nếu cần)
+    lang = 'vi' # Mặc định là tiếng Việt
+    try:
+        if user_query:
+            lang_detected = detect(user_query)
+            if lang_detected != 'vi':
+                lang = 'en'
+    except LangDetectException:
+        lang = 'en' # Nếu không chắc, ưu tiên tiếng Anh cho các từ ngắn
+    
+    print(f"=> Ngôn ngữ được xác định: {lang}")
+    
+    # 2. Chọn mô hình và thông tin liên hệ dựa trên ngôn ngữ
+    if lang == 'en':
+        model = model_en
         contact_info_text = (
             "I'm sorry, I don't have that specific information. "
             "For more details, please contact my human colleagues:\n\n"
             "- Official Zalo: HD fitness and yoga, number 033244646\n"
-            "- Technical Support (Zalo): 0971166684\n"
-            "- Emergency Hotline: 0979764885"
         )
-    else:  # Mặc định là tiếng Việt
-        system_prompt = """**Bối cảnh:** Bạn là một trợ lý ảo thông minh và linh hoạt của trung tâm "HD Fitness and Yoga".
-
-**QUY TẮC SỐ 1: NGÔN NGỮ LÀ QUAN TRỌNG NHẤT.**
-- Khách hàng đang hỏi bằng tiếng Việt.
-- Bạn **BẮT BUỘC** phải viết toàn bộ câu trả lời bằng **tiếng Việt**.
-
-**Nhiệm vụ:**
-- Hiểu rõ câu hỏi của khách hàng.
-- Chỉ dựa vào **TÀI LIỆU THAM KHẢO** được cung cấp để trả lời.
-- Nếu câu hỏi quá chung chung (ví dụ: "giá", "thông tin"), và tài liệu có nhiều loại giá (gym, yoga), hãy hỏi lại để làm rõ.
-- Nếu tài liệu **hoàn toàn không chứa thông tin** liên quan, bạn **BẮT BUỘC** phải trả về chuỗi ký tự `NO_INFO_FOUND`.
-"""
+    else:
+        model = model_vi
         contact_info_text = (
             "Xin lỗi, tôi chưa có thông tin cụ thể về vấn đề này. "
-            "Để biết chi tiết, bạn vui lòng liên hệ các đồng nghiệp của tôi qua các kênh sau nhé:\n\n"
-            "- Zalo chính thức: HD fitness and yoga, số 033244646\n"
-            "- Hỗ trợ kỹ thuật: Zalo số 0971166684\n"
-            "- Hotline khẩn cấp: 0979764885"
+            "Để biết chi tiết, bạn vui lòng liên hệ các đồng nghiệp của tôi qua Zalo 033244646 nhé."
         )
 
-    # Nếu không tìm thấy ngữ cảnh nào, trả về thông tin liên hệ ngay
-    if not context_data:
-        print("Không tìm thấy ngữ cảnh nào trong DB, trả về thông tin liên hệ.")
-        return contact_info_text
+    # 3. Tìm kiếm thông tin trong cơ sở tri thức (RAG) DỰA TRÊN CÂU HỎI HIỆN TẠI
+    print("=> Tiến hành tìm kiếm RAG cho câu hỏi hiện tại...")
+    results = collection.query(query_texts=[user_query], n_results=5) 
 
-    # Nếu có ngữ cảnh, đưa cho AI xử lý
-    prompt = f"""{system_prompt}
-
-**REFERENCE TEXT:**
+    context_data = None
+    if results and results['documents'] and results['documents'][0]:
+        context_data = "\n---\n".join(results['documents'][0])
+        print("=> Đã tìm thấy ngữ cảnh từ RAG.")
+    
+    # 4. Tạo prompt mới kết hợp RAG và câu hỏi hiện tại
+    # AI sẽ dựa vào lịch sử trò chuyện và được cung cấp thêm ngữ cảnh RAG này
+    final_prompt = f"""
+**TÀI LIỆU THAM KHẢO BỔ SUNG (dựa trên câu hỏi hiện tại của bạn):**
 ---
-{context_data}
+{context_data if context_data else "Không có thông tin bổ sung."}
 ---
 
-**User's question:** "{user_query}"
-
-**Your Answer:**
+**Câu hỏi hiện tại của bạn:** "{user_query}"
 """
+
+    # 5. Khởi tạo phiên chat với lịch sử và gửi prompt mới
     try:
-        response = model.generate_content(prompt)
+        # Bắt đầu phiên chat với toàn bộ lịch sử trước đó
+        chat_session = model.start_chat(history=history)
+        
+        # Gửi câu hỏi MỚI (đã được bổ sung ngữ cảnh RAG)
+        response = chat_session.send_message(final_prompt)
         response_text = response.text.strip()
         print(f"=> Gemini đã trả lời: '{response_text}'")
 
-        # Kiểm tra xem AI có trả về mã đặc biệt không
         if "NO_INFO_FOUND" in response_text:
             print("=> Gemini không tìm thấy câu trả lời, hiển thị thông tin liên hệ.")
             return contact_info_text
         else:
-            # Nếu có câu trả lời, trả về cho người dùng
             return response_text
 
     except Exception as e:
-        print(f"Lỗi khi gọi Gemini API: {e}")
-        # Nếu có lỗi xảy ra với API, cũng trả về thông tin liên hệ
+        print(f"Lỗi khi gọi Gemini API hoặc xử lý chat: {e}")
         return contact_info_text
 
-# --- Tạo Endpoint (địa chỉ) cho API ---
+
+# --- Cập nhật Endpoint API để nhận lịch sử ---
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
     user_message = data.get('message')
+    
+    # NHẬN LỊCH SỬ TỪ REQUEST, nếu không có thì là list rỗng
+    history = data.get('history', []) 
 
     if not user_message:
         return jsonify({"error": "Không nhận được tin nhắn"}), 400
 
-    bot_response = get_chatbot_response(user_message)
+    bot_response = get_chatbot_response(user_message, history)
 
     return jsonify({"reply": bot_response})
 

@@ -18,9 +18,9 @@ interface PaymentScreenProps {
     resetFormData: () => void;
 }
 
-const MY_BANK_ACCOUNT = "07019218501";
-const MY_BANK_NAME_VIETQR_ID = "TPB"; // TPBank
-const MY_ACCOUNT_HOLDER = "PHAM QUANG HUY";
+const MY_BANK_ACCOUNT = "0288639397979";
+const MY_BANK_NAME_VIETQR_ID = "MB"; // MBBank
+const MY_ACCOUNT_HOLDER = "CAO THI HOA"
 const PAYMENT_UI_TIMEOUT_SECONDS = 120; // 2 phút
 
 // Thêm object giá gói tập cho Yoga

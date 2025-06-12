@@ -323,7 +323,7 @@ export function PaymentScreen({
                         <br />
                         {language === "en" ? "Account Holder: " : "Chủ tài khoản: "}<b>{MY_ACCOUNT_HOLDER}</b>
                         <br />
-                        {language === "en" ? "Bank: " : "Ngân hàng: "}<b>TPBank</b>
+                        {language === "en" ? "Bank: " : "Ngân hàng: "}<b>MB Bank</b>
                         <br />
                         {language === "en" ? "Account No.: " : "Số tài khoản: "}<b>{MY_BANK_ACCOUNT}</b>
                         <br />

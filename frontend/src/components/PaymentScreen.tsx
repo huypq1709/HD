@@ -239,6 +239,12 @@ export function PaymentScreen({
             case "error_polling":
                 newMessage = language === "en" ? "Could not check payment status. Please check your connection or go back." : "Không thể kiểm tra trạng thái thanh toán. Vui lòng kiểm tra kết nối hoặc quay lại.";
                 shouldStopActivities = true;
+                if (!hasNavigatedOrTimedOutRef.current) {
+                    hasNavigatedOrTimedOutRef.current = true;
+                    setTimeout(() => {
+                        resetToIntro();
+                    }, 10000); // Quay về home sau 10 giây
+                }
                 break;
             default:
                 // Giữ nguyên statusMessage nếu không khớp case nào
@@ -252,7 +258,6 @@ export function PaymentScreen({
             stopTimer();
         }
     }, [paymentStatus, language, nextStep, resetToIntro, resetFormData, stopPolling, stopTimer]);
-
     // Helper để lấy giá hiển thị (dùng cho hiển thị tóm tắt đơn hàng nếu cần)
     const getDisplayPrice = () => {
         if (formData.service === "yoga") {

@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://13.229.230.76/", "http://localhost:5173"]}})
+CORS(app)
 
 # Lưu trữ trạng thái và kết quả của các task
 task_status = {}

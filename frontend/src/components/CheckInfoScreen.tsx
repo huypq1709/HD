@@ -21,7 +21,7 @@ export function CheckInfoScreen({ checkUserInfo, resetToIntro, language }: Check
     // Hàm để kiểm tra trạng thái task
     const checkTaskStatus = async (taskId: string) => {
         try {
-            const response = await fetch(`http://localhost:5000/start-check-info/${taskId}`);
+            const response = await fetch(`/api/app3/check-task-status/${taskId}`);
             const data = await response.json();
 
             if (data.status === "completed") {

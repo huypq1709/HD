@@ -12,7 +12,7 @@ interface FormData {
 
 export async function registerUser(formData: FormData) {
     // Sử dụng đường dẫn tương đối để phù hợp với cấu hình Nginx
-    const API_URL = 'http://localhost:5007/start-automation';
+    const API_URL = '/api/app5/start-automation';
 
     try {
         const response = await fetch(API_URL, {

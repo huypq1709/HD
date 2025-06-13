@@ -19,7 +19,7 @@ const ChatbotWidget: React.FC = () => {
   const inactivityTimer = useRef<number>();
   const autoCloseTimer = useRef<number>();
   const chatWindowRef = useRef<HTMLDivElement>(null);
-  const apiUrl = 'http://localhost:5009/chat';
+  const apiUrl = '/api/app6/chat'; // URL của backend Flask
 
   // Hàm khởi tạo/reset cuộc trò chuyện
   const initChat = () => {

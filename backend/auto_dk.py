@@ -16,7 +16,8 @@ from selenium.common.exceptions import TimeoutException, WebDriverException, NoS
     ElementClickInterceptedException
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["http://13.229.230.76/", "http://localhost:5173"]}})
+
 
 # --- CẤU HÌNH SELENIUM ---
 def _initialize_driver():

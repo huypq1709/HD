@@ -7,7 +7,7 @@ from flask_cors import CORS
 print("DEBUG: app1.py - SCRIPT LOADING...")
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["http://13.229.230.76/", "http://localhost:5173"]}})
 print("DEBUG: app1.py - Flask app created and CORS enabled.")
 
 pending_payments_by_order_id = {}

@@ -7,7 +7,8 @@ from langdetect import detect, LangDetectException
 
 # --- Cấu hình ứng dụng Flask ---
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["http://13.229.230.76/", "http://localhost:5173"]}})
+
 
 # --- Cấu hình API Key của Google ---
 try:

@@ -12,7 +12,8 @@ import time
 import traceback
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["http://13.229.230.76/", "http://localhost:5173"]}})
+
 
 @app.route("/initiate-faceid", methods=["POST"])
 def initiate_faceid():

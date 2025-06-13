@@ -13,7 +13,8 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 import time
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["http://13.229.230.76/", "http://localhost:5173"]}})
+
 
 automation_results = {}
 

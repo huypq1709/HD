@@ -296,6 +296,27 @@ export function PaymentScreen({
                     </span>
                 </div>
             </div>
+            {/* === THÊM KHỐI THÔNG BÁO NÀY VÀO === */}
+            <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700">
+                <p className="font-bold">
+                    {language === 'en' ? 'Important Note' : 'Lưu ý Quan trọng'}
+                </p>
+                {formData.customerType === 'new' && (
+                    <p>
+                        {language === 'en'
+                            ? 'As a new member, after successful payment, you will be redirected to the Face ID update screen.'
+                            : 'Vì là khách hàng mới, sau khi thanh toán thành công, quý khách sẽ được chuyển tiếp sang màn hình cập nhật khuôn mặt.'}
+                    </p>
+                )}
+                {formData.customerType === 'returning' && (
+                    <p>
+                        {language === 'en'
+                            ? 'As a returning member, you do not need to update your Face ID again. The process will complete after payment.'
+                            : 'Vì là khách hàng cũ, quý khách không cần phải cập nhật lại khuôn mặt. Quá trình sẽ hoàn tất sau khi thanh toán.'}
+                    </p>
+                )}
+            </div>
+            {/* === KẾT THÚC KHỐI THÔNG BÁO === */}
 
             <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
                 <div className="w-full md:w-1/2 text-center p-6 border-2 border-dashed border-gray-300 rounded-lg flex flex-col justify-between min-h-[200px]">
@@ -356,4 +377,3 @@ export function PaymentScreen({
     );
 }
 
-// export default PaymentScreen; // Nếu bạn dùng file riêng

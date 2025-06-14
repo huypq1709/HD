@@ -23,9 +23,9 @@ services:
       - "443:443"
     volumes:
       # THÊM CỜ :z ở cuối để cho phép SELinux truy cập
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # THÊM CỜ :z ở cuối để cho phép SELinux truy cập
-      - /etc/letsencrypt:/etc/letsencrypt:ro,z
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend
       - frontend

@@ -21,10 +21,10 @@ services:
     ports:
       # Mở cổng 80 của máy chủ và ánh xạ vào cổng 80 của container Nginx
       - "80:80"
-      - "443:443"
     volumes:
       # Ánh xạ file cấu hình nginx.conf vào trong container
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       # Đảm bảo Nginx chỉ khởi động sau khi backend và frontend đã sẵn sàng
       - backend

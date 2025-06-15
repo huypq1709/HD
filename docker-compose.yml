@@ -1,27 +1,28 @@
 version: '3.8'
 
 services:
+  # Service cho Backend Flask
   backend:
     build: ./backend
-    container_name: hd-backend-1
     restart: always
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
 
+  # Service cho Frontend React
   frontend:
     build: ./frontend
-    container_name: hd-frontend-1
     restart: always
 
+  # Service cho Nginx Reverse Proxy
   nginx-proxy:
     image: nginx:stable-alpine
-    container_name: hd-nginx-proxy-1
     restart: always
     ports:
-      - "80:80"
       - "443:443"
+      - "80:80"
+
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend

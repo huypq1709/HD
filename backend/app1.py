@@ -138,12 +138,15 @@ def sepay_webhook_listener():
 
     # Tìm order_id trong content (format: ...-TT HD...)
     order_id_from_webhook = None
-    if "TT HD" in content_from_webhook:
-        # Tìm phần sau "TT HD" trong content
-        tt_hd_index = content_from_webhook.find("TT HD")
-        if tt_hd_index != -1:
-            order_id_from_webhook = content_from_webhook[tt_hd_index:]
-            print(f"[app1.py] Webhook: Extracted order_id from content: {order_id_from_webhook}")
+    import re
+
+# Dùng regex để trích xuất order_id dạng "TT HD" + số + 6 ký tự A-Z/0-9
+    match = re.search(r"TT HD\d+[A-Z0-9]{6}", content_from_webhook)
+    if match:
+        order_id_from_webhook = match.group(0).strip()
+        print(f"[app1.py] Webhook: Extracted order_id via regex: {order_id_from_webhook}")
+    else:
+        print("[app1.py] Webhook: Không tìm thấy định dạng order_id hợp lệ trong content.")
 
     if not order_id_from_webhook:
         print(f"[app1.py] Webhook: Could not find 'TT HD' in content. Trying referenceCode...")

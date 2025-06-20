@@ -75,13 +75,11 @@ MEMBERSHIP_INDEX_MAP_GYM = {
 # Ánh xạ gói tập sang index cho YOGA
 MEMBERSHIP_INDEX_MAP_YOGA = {
     "1 month": 1,  # Yoga 1T 12B (vị trí 1)
-    "3 month": 2,  # YOGA 3T 36B (vị trí 2)
-    "6 month": 3,  # YOGA 6T 72B (vị trí 3)
+    "3 months": 2,  # YOGA 3T 36B (vị trí 2)
+    "6 months": 3,  # YOGA 6T 72B (vị trí 3)
     "1 year": "last()"  # YOGA 12 THÁNG 144B (vị trí cuối cùng)
 }
 
-
-# ... (các hàm khác)
 
 # --- Hàm tự động hóa cho khách cũ (SỬA ĐỔI LẠI BƯỚC 4 - Chọn gói tập theo service_type) ---
 def _automate_for_existing_customer_sync(phone_number, service_type, membership_type):

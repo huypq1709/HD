@@ -6,7 +6,7 @@ export function playSound(soundId: number, language: string): HTMLAudioElement {
     currentAudio.pause();
     currentAudio.currentTime = 0;
   }
-  const lang = language === "en" ? "en" : "vi";
+  const lang = language === "en" ? "en" : "vn";
   const audio = new Audio(`/sounds/sound${soundId}_${lang}.mp3`);
   currentAudio = audio;
   audio.play();

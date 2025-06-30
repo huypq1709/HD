@@ -5,6 +5,7 @@ gunicorn
 Flask-Cors
 selenium
 beautifulsoup4
+pyperclip
 # Browser Automation & Scraping
 
 # GUI & Clipboard Automation (Đọc lưu ý quan trọng bên dưới)

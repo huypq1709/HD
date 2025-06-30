@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { UserIcon, UserPlusIcon } from "lucide-react";
 import { Slogan } from "./Slogan";
+import { playSound } from "../utils/playSound";
 
 interface CustomerTypeScreenProps {
     formData: {
@@ -27,6 +28,10 @@ export const CustomerTypeScreen: React.FC<CustomerTypeScreenProps> = ({
         updateFormData("customerType", type);
         nextStep();
     };
+
+    useEffect(() => {
+        playSound(1, language);
+    }, [language]);
 
     return (
         <div className="space-y-6">

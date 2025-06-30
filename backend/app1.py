@@ -40,26 +40,7 @@ def calculate_membership_price(membership_type, customer_type=None, service_type
         total_gross = BASE_MONTHLY_PRICE_VND * months
         standard_discount = STANDARD_DURATION_DISCOUNTS.get(membership_type, 0)
         price_after_standard = total_gross * (1 - standard_discount)
-        # Áp dụng promo nếu có
-        promo_discount = 0
-        if customer_type == "returning":
-            PROMO_DISCOUNTS_OLD_CUSTOMER = {
-                "1 month": 0.05,
-                "3 months": 0.10,
-                "6 months": 0.15,
-                "1 year": 0.15,
-            }
-            promo_discount = PROMO_DISCOUNTS_OLD_CUSTOMER.get(membership_type, 0)
-        elif customer_type == "new":
-            PROMO_DISCOUNTS_NEW_CUSTOMER = {
-                "1 month": 0.10,
-                "3 months": 0.15,
-                "6 months": 0.25,
-                "1 year": 0.30,
-            }
-            promo_discount = PROMO_DISCOUNTS_NEW_CUSTOMER.get(membership_type, 0)
-        final_price = price_after_standard * (1 - promo_discount)
-        return round(final_price)
+        return round(price_after_standard)
 
     # Yoga: chỉ trả về giá gốc từng gói, không giảm giá
     if service_type == "yoga":

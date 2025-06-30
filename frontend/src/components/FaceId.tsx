@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Loader from "./Loader";
+import { playSound } from "../utils/playSound";
 
 interface FaceIdProps {
     checkUserInfo: (phone: string) => Promise<{ name: string; phone: string; status: string } | null>;
@@ -17,6 +18,10 @@ export function FaceId({ checkUserInfo, resetToIntro, language }: FaceIdProps) {
     const [notFound, setNotFound] = useState(false);
     const [fetchError, setFetchError] = useState(false);
     const [registrationCompleted, setRegistrationCompleted] = useState(false); // Theo dõi trạng thái đăng ký
+
+    useEffect(() => {
+        playSound(8, language);
+    }, [language]);
 
     useEffect(() => {
         if(registrationCompleted){

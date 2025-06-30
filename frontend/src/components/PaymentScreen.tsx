@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Slogan } from "./Slogan";
+import { playSound } from "../utils/playSound";
 // import Loader from "./Loader"; // Nếu bạn có loader
 
 interface PaymentScreenProps {
@@ -258,6 +259,11 @@ export function PaymentScreen({
             stopTimer();
         }
     }, [paymentStatus, language, nextStep, resetToIntro, resetFormData, stopPolling, stopTimer]);
+
+    useEffect(() => {
+        playSound(6, language);
+    }, [language]);
+
     // Helper để lấy giá hiển thị (dùng cho hiển thị tóm tắt đơn hàng nếu cần)
     const getDisplayPrice = () => {
         if (formData.service === "yoga") {

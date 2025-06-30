@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Loader from "./Loader"; // Đảm bảo đường dẫn đến component Loader của bạn là đúng
+import { playSound } from "../utils/playSound";
 
 interface PhoneScreenProps {
     formData: {
@@ -43,6 +44,10 @@ export function PhoneScreen({
             setCountdown(null);
         }
     }, [loading]);
+
+    useEffect(() => {
+        playSound(3, language);
+    }, [language]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -135,7 +140,7 @@ export function PhoneScreen({
 
                 {loading && (
                     <div className="flex flex-col items-center pt-4">
-                        <Loader size="md" />
+                        <Loader />
                         <p className="mt-2 text-sm text-gray-600">
                             {language === "en"
                                 ? `Verifying information in ${countdown !== null ? countdown : '...' } seconds. Let's warm up a bit!`

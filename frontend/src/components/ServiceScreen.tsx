@@ -1,18 +1,27 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { DumbbellIcon } from "lucide-react";
 import { Slogan } from "./Slogan";
+import { playSound } from "../utils/playSound";
 
-export function ServiceScreen({
-                                  formData,
-                                  updateFormData,
-                                  nextStep,
-                                  prevStep,
-                                  language
-                              }) {
+interface ServiceScreenProps {
+    formData: any;
+    updateFormData: (field: string, value: any) => void;
+    nextStep: () => void;
+    prevStep: () => void;
+    language: string;
+}
+
+export function ServiceScreen(props: ServiceScreenProps) {
+    const { formData, updateFormData, nextStep, prevStep, language } = props;
+
     const handleSelect = (service: string) => {
         updateFormData("service", service);
         nextStep();
     };
+
+    useEffect(() => {
+        playSound(4, language);
+    }, [language]);
 
     return (
         <div className="space-y-6">

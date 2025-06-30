@@ -1,5 +1,6 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { Slogan } from "./Slogan";
+import { playSound } from "../utils/playSound";
 
 // Định nghĩa kiểu dữ liệu cho props
 interface NameScreenProps {
@@ -31,6 +32,10 @@ export function NameScreen({
     }
     nextStep();
   };
+
+  useEffect(() => {
+    playSound(2, language);
+  }, [language]);
 
   return (
       <div className="space-y-6">

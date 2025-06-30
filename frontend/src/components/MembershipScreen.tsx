@@ -1,4 +1,6 @@
 import { Slogan } from "./Slogan";
+import { useEffect } from "react";
+import { playSound } from "../utils/playSound";
 
 interface MembershipScreenProps {
     formData: {
@@ -34,20 +36,6 @@ const STANDARD_DURATION_DISCOUNTS: { [key: string]: number } = {
     "3 months": 0.10, // 10%
     "6 months": 0.15, // 15%
     "1 year": 0.20,  // 20%
-};
-
-const PROMO_DISCOUNTS_OLD_CUSTOMER: { [key: string]: number } = {
-    "1 month": 0.05, // 5%
-    "3 months": 0.10, // 10%
-    "6 months": 0.15, // 15%
-    "1 year": 0.15, // 15%
-};
-
-const PROMO_DISCOUNTS_NEW_CUSTOMER: { [key: string]: number } = {
-    "1 month": 0.10, // 10%
-    "3 months": 0.15, // 15%
-    "6 months": 0.25, // 25%
-    "1 year": 0.30, // 30%
 };
 
 const YOGA_BASE_PRICES: { [key: string]: number } = {
@@ -128,9 +116,6 @@ export function MembershipScreen({
                 displayedDiscountPercentage: 0,
             };
         }
-        // *** BẮT ĐẦU SỬA: XỬ LÝ TRƯỜNG HỢP GÓI 1 NGÀY CỦA GYM ***
-    // Giả định '1_day' là membershipId cho gói 1 ngày.
-    // Bạn hãy thay thế '1_day' bằng ID chính xác nếu cần.
         if (membershipId === '1 day') {
             const dayPassPrice = 60000;
             return {
@@ -140,8 +125,6 @@ export function MembershipScreen({
                 displayedDiscountPercentage: 0,
             };
         }
-    // *** KẾT THÚC SỬA ***
-
         const months = DURATION_IN_MONTHS[membershipId];
         if (months === undefined) {
             const notAvailable = language === "en" ? "N/A" : "Không có giá";
@@ -152,36 +135,32 @@ export function MembershipScreen({
                 displayedDiscountPercentage: 0,
             };
         }
-
         const totalGrossPrice = BASE_MONTHLY_PRICE_VND * months;
-
         // Apply standard duration discount
         const standardDiscountRate = STANDARD_DURATION_DISCOUNTS[membershipId] ?? 0;
         const priceAfterStandardDiscount = totalGrossPrice * (1 - standardDiscountRate);
-
-        // Apply promotional discount based on customer type
-        let promotionalDiscountRate = 0;
-        // Cập nhật điều kiện kiểm tra khách hàng cũ: "returning" thay vì "old"
-        if (customerType === "returning" && PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId] !== undefined) {
-            promotionalDiscountRate = PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId];
-        } else if (customerType === "new" && PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId] !== undefined) {
-            promotionalDiscountRate = PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId];
-        }
-
-        const finalPrice = priceAfterStandardDiscount * (1 - promotionalDiscountRate);
-
-        // *** THAY ĐỔI TẠI ĐÂY ***
-        // Phần trăm giảm giá hiển thị sẽ là promotionalDiscountRate (giảm giá sau khi đã có standard discount)
-        const displayedDiscountPercentage = promotionalDiscountRate * 100;
-
-        // hasPromotionalDiscount sẽ true nếu có bất kỳ promotionalDiscountRate nào (chứ không phải standard)
-        const hasPromo = promotionalDiscountRate > 0;
-
+        // Không còn áp dụng promotional discount nữa
+        // let promotionalDiscountRate = 0;
+        // if (customerType === "returning" && PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId] !== undefined) {
+        //     promotionalDiscountRate = PROMO_DISCOUNTS_OLD_CUSTOMER[membershipId];
+        // } else if (customerType === "new" && PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId] !== undefined) {
+        //     promotionalDiscountRate = PROMO_DISCOUNTS_NEW_CUSTOMER[membershipId];
+        // }
+        // const finalPrice = priceAfterStandardDiscount * (1 - promotionalDiscountRate);
+        // const displayedDiscountPercentage = promotionalDiscountRate * 100;
+        // const hasPromo = promotionalDiscountRate > 0;
+        // return {
+        //     standardPriceFormatted: formatVND(Math.round(priceAfterStandardDiscount)),
+        //     finalPriceFormatted: formatVND(Math.round(finalPrice)),
+        //     hasPromotionalDiscount: hasPromo,
+        //     displayedDiscountPercentage: Math.round(displayedDiscountPercentage),
+        // };
+        // Chỉ áp dụng standard discount
         return {
             standardPriceFormatted: formatVND(Math.round(priceAfterStandardDiscount)),
-            finalPriceFormatted: formatVND(Math.round(finalPrice)),
-            hasPromotionalDiscount: hasPromo,
-            displayedDiscountPercentage: Math.round(displayedDiscountPercentage), // Làm tròn phần trăm
+            finalPriceFormatted: formatVND(Math.round(priceAfterStandardDiscount)),
+            hasPromotionalDiscount: false,
+            displayedDiscountPercentage: 0,
         };
     };
 
@@ -209,6 +188,10 @@ export function MembershipScreen({
         // Chuyển sang bước tiếp theo
         nextStep();
     };
+
+    useEffect(() => {
+        playSound(5, language);
+    }, [language]);
 
     return (
         <div className="space-y-6">

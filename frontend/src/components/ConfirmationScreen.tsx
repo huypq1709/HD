@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { registerUser } from '../api/registration'; // Đảm bảo hàm này gọi đúng '/api/app5/start-automation'
 import Loader from './Loader'; // Component Loader của bạn
 import { Slogan } from './Slogan'; // Component Slogan của bạn
+import { playSound } from "../utils/playSound";
 
 interface ConfirmationScreenProps {
   formData: {
@@ -24,6 +25,7 @@ export function ConfirmationScreen({ formData, updateFormData, nextStep, languag
   const [countdown, setCountdown] = useState<number | null>(null); // Đếm ngược về Home cho khách cũ
   const [paymentStatus, setPaymentStatus] = useState<string>("initializing");
   const [showSummary, setShowSummary] = useState(false);
+  const [processingCountdown, setProcessingCountdown] = useState<number | null>(null); // Đếm ngược khi đang xử lý
 
   const hasInitiatedProcessRef = useRef(false); // Đảm bảo chỉ chạy tự động hóa một lần
   const hasNavigatedRef = useRef(false);      // Đảm bảo chỉ điều hướng một lần
@@ -102,6 +104,40 @@ export function ConfirmationScreen({ formData, updateFormData, nextStep, languag
     return () => clearInterval(timer);
   }, [countdown, resetToIntro, language]);
 
+  // useEffect để reload lại trang khi thành công
+  useEffect(() => {
+    if (
+      !isProcessing &&
+      processMessage &&
+      !processMessage.toLowerCase().includes("lỗi") &&
+      !processMessage.toLowerCase().includes("thất bại") &&
+      !processMessage.toLowerCase().includes("error") &&
+      !processMessage.toLowerCase().includes("failed")
+    ) {
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 3000); // 3 giây sau khi thành công sẽ reload lại trang
+      return () => clearTimeout(timer);
+    }
+  }, [isProcessing, processMessage]);
+
+  useEffect(() => {
+    playSound(7, language);
+  }, [language]);
+
+  // useEffect cho bộ đếm ngược khi đang xử lý (60 giây)
+  useEffect(() => {
+    if (isProcessing) {
+      setProcessingCountdown(60);
+      const intervalId = setInterval(() => {
+        setProcessingCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearInterval(intervalId);
+    } else {
+      setProcessingCountdown(null);
+    }
+  }, [isProcessing]);
+
   const getMembershipName = (id: string) => {
     const membershipsMap: { [key: string]: string } = {
       "1 day": language === "en" ? "1 Day" : "Gói 1 Ngày",
@@ -149,6 +185,13 @@ export function ConfirmationScreen({ formData, updateFormData, nextStep, languag
           <p className={`mt-4 text-lg ${processMessage.includes("Lỗi") || processMessage.includes("thất bại") || processMessage.includes("Error") || processMessage.includes("failed") ? 'text-red-600' : 'text-blue-600'}`}>
             {processMessage}
           </p>
+          {isProcessing && (
+            <span className="mt-2 text-gray-600">
+              {language === "en"
+                ? `Waiting for system response in ${processingCountdown !== null ? processingCountdown : '...'} seconds...`
+                : `Đang chờ hệ thống phản hồi trong ${processingCountdown !== null ? processingCountdown : '...'} giây...`}
+            </span>
+          )}
         </div>
 
         {/* Nút quay về nếu có lỗi nghiêm trọng hoặc người dùng muốn quay lại sớm */}

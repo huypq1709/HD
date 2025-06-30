@@ -20,6 +20,7 @@ export function FaceId({ checkUserInfo, resetToIntro, language }: FaceIdProps) {
     const [registrationCompleted, setRegistrationCompleted] = useState(false); // Theo dõi trạng thái đăng ký
 
     useEffect(() => {
+        console.log('Play sound FaceId', language);
         stopSound();
         playSound(8, language);
         return () => { stopSound(); };

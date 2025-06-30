@@ -30,6 +30,7 @@ export const CustomerTypeScreen: React.FC<CustomerTypeScreenProps> = ({
     };
 
     useEffect(() => {
+        console.log('Play sound CustomerTypeScreen', language);
         stopSound();
         playSound(1, language);
         return () => { stopSound(); };

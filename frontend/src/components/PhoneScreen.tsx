@@ -48,6 +48,7 @@ export function PhoneScreen({
     }, [loading]);
 
     useEffect(() => {
+        console.log('Play sound PhoneScreen', language);
         stopSound();
         playSound(3, language);
         return () => { stopSound(); };

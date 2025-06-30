@@ -9,13 +9,13 @@ interface IntroScreenProps {
 export function IntroScreen({ onRegister, language }: IntroScreenProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const slides = [
-    { url: "/discount.jpg", alt: "Summer 2025" },
-    { url: "/price.jpg", alt: "Price" },
-    { url: "/gym_5.jpg", alt: "Modern gym reception area" },
-    { url: "/gym6.jpg", alt: "Weight training area" },
-    { url: "/gym4.jpg", alt: "Cardio equipment area" },
-    { url: "/gym3.jpg", alt: "Functional training area" },
-    { url: "/gym2.jpg", alt: "Additional training area" }
+    { url: "/1_7.svg", alt: "New era" },
+    // { url: "/price.jpg", alt: "Price" },
+    // { url: "/gym_5.jpg", alt: "Modern gym reception area" },
+    // { url: "/gym6.jpg", alt: "Weight training area" },
+    // { url: "/gym4.jpg", alt: "Cardio equipment area" },
+    // { url: "/gym3.jpg", alt: "Functional training area" },
+    // { url: "/gym2.jpg", alt: "Additional training area" }
   ];
 
   useEffect(() => {

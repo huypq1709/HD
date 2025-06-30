@@ -60,7 +60,7 @@ def run_automation(phone, customer_type):
         search_input.send_keys(Keys.ENTER)
 
         # Đợi kết quả tìm kiếm load
-        time.sleep(1)
+        time.sleep(3)
 
         # Kiểm tra kết quả tìm kiếm
         try:

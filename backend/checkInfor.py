@@ -69,7 +69,7 @@ def process_check_phone_task(task_id, phone_number):
             search_input.send_keys(Keys.ENTER)
 
             # Đợi kết quả tìm kiếm load
-            time.sleep(1)
+            time.sleep(3)
 
             # Đợi bảng kết quả xuất hiện
             try:
@@ -77,7 +77,7 @@ def process_check_phone_task(task_id, phone_number):
                     EC.presence_of_element_located((By.CSS_SELECTOR, "tbody.show-table-ready"))
                 )
                 # Đợi thêm 1 giây để đảm bảo dữ liệu load đầy đủ
-                time.sleep(1)
+                time.sleep(3)
                 
                 html_content = driver.page_source
                 soup = BeautifulSoup(html_content, "html.parser")

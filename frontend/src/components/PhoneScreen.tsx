@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Loader from "./Loader"; // Đảm bảo đường dẫn đến component Loader của bạn là đúng
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 
 interface PhoneScreenProps {
     formData: {
@@ -15,6 +15,7 @@ interface PhoneScreenProps {
     prevStep: () => void;
     language: string;
     processPhoneNumber: (phone: string) => Promise<'found' | 'not_found' | 'error'>;
+    resetToIntro: () => void;
 }
 
 export function PhoneScreen({
@@ -24,6 +25,7 @@ export function PhoneScreen({
                                 prevStep,
                                 language,
                                 processPhoneNumber,
+                                resetToIntro,
                             }: PhoneScreenProps) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -47,7 +49,23 @@ export function PhoneScreen({
 
     useEffect(() => {
         playSound(3, language);
+        return () => { stopSound(); };
     }, [language]);
+
+    useEffect(() => {
+        if (typeof error === 'string' && error && (
+            error.toLowerCase().includes("lỗi") ||
+            error.toLowerCase().includes("thất bại") ||
+            error.toLowerCase().includes("error") ||
+            error.toLowerCase().includes("failed")
+        )) {
+            const timer = setTimeout(() => {
+                window.location.reload();
+                if (typeof resetToIntro === 'function') resetToIntro();
+            }, 60000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, resetToIntro]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

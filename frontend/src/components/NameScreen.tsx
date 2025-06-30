@@ -1,6 +1,6 @@
 import { useState, FormEvent, useEffect } from "react";
 import { Slogan } from "./Slogan";
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 
 // Định nghĩa kiểu dữ liệu cho props
 interface NameScreenProps {
@@ -12,6 +12,7 @@ interface NameScreenProps {
   nextStep: () => void;
   prevStep: () => void;
   language: string;
+  resetToIntro: () => void;
 }
 
 export function NameScreen({
@@ -19,7 +20,8 @@ export function NameScreen({
                              updateFormData,
                              nextStep,
                              prevStep,
-                             language
+                             language,
+                             resetToIntro
                            }: NameScreenProps) {
   const [error, setError] = useState("");
 
@@ -35,7 +37,24 @@ export function NameScreen({
 
   useEffect(() => {
     playSound(2, language);
+    return () => { stopSound(); };
   }, [language]);
+
+  // useEffect: Nếu có lỗi hiển thị lên màn hình thì sau 60 giây sẽ reload lại và trở về Intro
+  useEffect(() => {
+    if (typeof error === 'string' && error && (
+      error.toLowerCase().includes("lỗi") ||
+      error.toLowerCase().includes("thất bại") ||
+      error.toLowerCase().includes("error") ||
+      error.toLowerCase().includes("failed")
+    )) {
+      const timer = setTimeout(() => {
+        window.location.reload();
+        if (typeof resetToIntro === 'function') resetToIntro();
+      }, 60000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, resetToIntro]);
 
   return (
       <div className="space-y-6">

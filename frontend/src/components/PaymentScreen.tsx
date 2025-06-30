@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Slogan } from "./Slogan";
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 // import Loader from "./Loader"; // Nếu bạn có loader
 
 interface PaymentScreenProps {
@@ -260,8 +260,25 @@ export function PaymentScreen({
         }
     }, [paymentStatus, language, nextStep, resetToIntro, resetFormData, stopPolling, stopTimer]);
 
+    // useEffect: Nếu có lỗi hiển thị lên màn hình thì sau 60 giây sẽ reload lại và trở về Intro
+    useEffect(() => {
+        if (typeof statusMessage === 'string' && statusMessage && (
+            statusMessage.toLowerCase().includes("lỗi") ||
+            statusMessage.toLowerCase().includes("thất bại") ||
+            statusMessage.toLowerCase().includes("error") ||
+            statusMessage.toLowerCase().includes("failed")
+        )) {
+            const timer = setTimeout(() => {
+                window.location.reload();
+                if (typeof resetToIntro === 'function') resetToIntro();
+            }, 60000);
+            return () => clearTimeout(timer);
+        }
+    }, [statusMessage, resetToIntro]);
+
     useEffect(() => {
         playSound(6, language);
+        return () => { stopSound(); };
     }, [language]);
 
     // Helper để lấy giá hiển thị (dùng cho hiển thị tóm tắt đơn hàng nếu cần)

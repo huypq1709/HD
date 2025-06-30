@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Loader from "./Loader";
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 
 interface FaceIdProps {
     checkUserInfo: (phone: string) => Promise<{ name: string; phone: string; status: string } | null>;
@@ -21,6 +21,7 @@ export function FaceId({ checkUserInfo, resetToIntro, language }: FaceIdProps) {
 
     useEffect(() => {
         playSound(8, language);
+        return () => { stopSound(); };
     }, [language]);
 
     useEffect(() => {

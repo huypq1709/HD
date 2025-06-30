@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { registerUser } from '../api/registration'; // Đảm bảo hàm này gọi đúng '/api/app5/start-automation'
 import Loader from './Loader'; // Component Loader của bạn
 import { Slogan } from './Slogan'; // Component Slogan của bạn
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 
 interface ConfirmationScreenProps {
   formData: {
@@ -104,25 +104,29 @@ export function ConfirmationScreen({ formData, updateFormData, nextStep, languag
     return () => clearInterval(timer);
   }, [countdown, resetToIntro, language]);
 
-  // useEffect để reload lại trang khi thành công
+  // useEffect: Nếu có lỗi hiển thị lên màn hình thì sau 60 giây sẽ reload lại và trở về Intro
   useEffect(() => {
     if (
       !isProcessing &&
       processMessage &&
-      !processMessage.toLowerCase().includes("lỗi") &&
-      !processMessage.toLowerCase().includes("thất bại") &&
-      !processMessage.toLowerCase().includes("error") &&
-      !processMessage.toLowerCase().includes("failed")
+      (
+        processMessage.toLowerCase().includes("lỗi") ||
+        processMessage.toLowerCase().includes("thất bại") ||
+        processMessage.toLowerCase().includes("error") ||
+        processMessage.toLowerCase().includes("failed")
+      )
     ) {
       const timer = setTimeout(() => {
         window.location.reload();
-      }, 3000); // 3 giây sau khi thành công sẽ reload lại trang
+        resetToIntro();
+      }, 60000); // 60 giây
       return () => clearTimeout(timer);
     }
-  }, [isProcessing, processMessage]);
+  }, [isProcessing, processMessage, resetToIntro]);
 
   useEffect(() => {
     playSound(7, language);
+    return () => { stopSound(); };
   }, [language]);
 
   // useEffect cho bộ đếm ngược khi đang xử lý (60 giây)

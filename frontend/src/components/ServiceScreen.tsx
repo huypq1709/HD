@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { DumbbellIcon } from "lucide-react";
 import { Slogan } from "./Slogan";
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 
 interface ServiceScreenProps {
     formData: any;
@@ -21,6 +21,7 @@ export function ServiceScreen(props: ServiceScreenProps) {
 
     useEffect(() => {
         playSound(4, language);
+        return () => { stopSound(); };
     }, [language]);
 
     return (

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { UserIcon, UserPlusIcon } from "lucide-react";
 import { Slogan } from "./Slogan";
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 
 interface CustomerTypeScreenProps {
     formData: {
@@ -31,6 +31,7 @@ export const CustomerTypeScreen: React.FC<CustomerTypeScreenProps> = ({
 
     useEffect(() => {
         playSound(1, language);
+        return () => { stopSound(); };
     }, [language]);
 
     return (

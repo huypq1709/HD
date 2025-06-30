@@ -1,6 +1,6 @@
 import { Slogan } from "./Slogan";
 import { useEffect } from "react";
-import { playSound } from "../utils/playSound";
+import { playSound, stopSound } from "../utils/playSound";
 
 interface MembershipScreenProps {
     formData: {
@@ -191,6 +191,7 @@ export function MembershipScreen({
 
     useEffect(() => {
         playSound(5, language);
+        return () => { stopSound(); };
     }, [language]);
 
     return (

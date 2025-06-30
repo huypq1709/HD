@@ -125,6 +125,7 @@ export function ConfirmationScreen({ formData, updateFormData, nextStep, languag
   }, [isProcessing, processMessage, resetToIntro]);
 
   useEffect(() => {
+    stopSound();
     playSound(7, language);
     return () => { stopSound(); };
   }, [language]);

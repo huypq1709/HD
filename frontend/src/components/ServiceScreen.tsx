@@ -20,6 +20,7 @@ export function ServiceScreen(props: ServiceScreenProps) {
     };
 
     useEffect(() => {
+        stopSound();
         playSound(4, language);
         return () => { stopSound(); };
     }, [language]);

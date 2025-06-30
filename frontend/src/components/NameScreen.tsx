@@ -36,6 +36,7 @@ export function NameScreen({
   };
 
   useEffect(() => {
+    stopSound();
     playSound(2, language);
     return () => { stopSound(); };
   }, [language]);

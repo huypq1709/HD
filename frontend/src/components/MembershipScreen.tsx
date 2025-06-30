@@ -190,6 +190,7 @@ export function MembershipScreen({
     };
 
     useEffect(() => {
+        stopSound();
         playSound(5, language);
         return () => { stopSound(); };
     }, [language]);

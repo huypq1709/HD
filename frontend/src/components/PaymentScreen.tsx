@@ -277,6 +277,7 @@ export function PaymentScreen({
     }, [statusMessage, resetToIntro]);
 
     useEffect(() => {
+        stopSound();
         playSound(6, language);
         return () => { stopSound(); };
     }, [language]);

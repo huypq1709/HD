@@ -48,6 +48,7 @@ export function PhoneScreen({
     }, [loading]);
 
     useEffect(() => {
+        stopSound();
         playSound(3, language);
         return () => { stopSound(); };
     }, [language]);

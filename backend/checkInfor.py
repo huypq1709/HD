@@ -54,22 +54,22 @@ def process_check_phone_task(task_id, phone_number):
             driver.get("https://hdfitnessyoga.timesoft.vn/")
             
             # Đăng nhập
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
-            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
+            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
             
             # Đợi trang load sau khi đăng nhập
             time.sleep(3)
 
             # Đợi radio_all xuất hiện và click
-            radio_all = WebDriverWait(driver, 10).until(
+            radio_all = WebDriverWait(driver, 20).until(
                 EC.element_to_be_clickable((By.ID, "radio_0"))
             )
             radio_all.click()
             time.sleep(1)  # Đợi radio được chọn
 
             # Đợi input search xuất hiện
-            search_input = WebDriverWait(driver, 10).until(
+            search_input = WebDriverWait(driver, 20).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
             )
             search_input.clear()
@@ -81,7 +81,7 @@ def process_check_phone_task(task_id, phone_number):
 
             # Đợi bảng kết quả xuất hiện
             try:
-                WebDriverWait(driver, 10).until(
+                WebDriverWait(driver, 20).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "tbody.show-table-ready"))
                 )
                 # Đợi thêm 1 giây để đảm bảo dữ liệu load đầy đủ
@@ -120,19 +120,17 @@ def process_check_phone_task(task_id, phone_number):
                 task_results[task_id] = {"results": data_list}
                 task_status[task_id] = "completed"
             except Exception as e:
-                # Nếu không tìm thấy bảng kết quả, kiểm tra thông báo "Không tìm thấy bản ghi nào"
                 try:
                     WebDriverWait(driver, 10).until(EC.visibility_of_element_located(
                         (By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")))
                     task_results[task_id] = {"results": []}
                     task_status[task_id] = "completed"
-                except:
-                    error_message = f"Error in check_phone: {type(e).__name__} - {str(e)}"
+                except Exception as e2:
+                    error_message = f"Error in check_phone (table/result): {type(e).__name__} - {str(e)} | {type(e2).__name__} - {str(e2)}"
                     task_results[task_id] = {"error": error_message}
                     task_status[task_id] = "error"
-
         except Exception as e:
-            error_message = f"Error in check_phone: {type(e).__name__} - {str(e)}"
+            error_message = f"Error during driver operation: {type(e).__name__} - {str(e)}"
             task_results[task_id] = {"error": error_message}
             task_status[task_id] = "error"
         finally:

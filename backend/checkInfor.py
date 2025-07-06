@@ -51,8 +51,7 @@ def process_check_phone_task(task_id, phone_number):
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
             chrome_options.add_argument("--window-size=1920,1080")
-            chrome_options.add_argument("--single-process")
-            chrome_options.add_argument("--disable-software-rasterizer")
+            chrome_options.add_argument("--remote-debugging-port=9222")
             # Tối ưu: tắt tải ảnh, font, stylesheet
             prefs = {
                 "profile.managed_default_content_settings.images": 2,

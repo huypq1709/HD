@@ -79,6 +79,10 @@ def process_check_phone_task(task_id, phone_number):
                 # Đợi trang load sau khi đăng nhập
                 time.sleep(3)
 
+                # Đợi overlay loading biến mất trước khi click radio
+                WebDriverWait(driver, 20).until(
+                    EC.invisibility_of_element_located((By.ID, "loading-pane"))
+                )
                 # Đợi radio_all xuất hiện và click
                 radio_all = WebDriverWait(driver, 20).until(
                     EC.element_to_be_clickable((By.ID, "radio_0"))

@@ -45,6 +45,12 @@ def process_check_phone_task(task_id, phone_number):
         driver = None
         try:
             driver = webdriver.Chrome(service=service, options=chrome_options)
+        except Exception as e:
+            error_message = f"Could not start Chrome: {type(e).__name__} - {str(e)}"
+            task_results[task_id] = {"error": error_message}
+            task_status[task_id] = "error"
+            return
+        try:
             driver.get("https://hdfitnessyoga.timesoft.vn/")
             
             # Đăng nhập

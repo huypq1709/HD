@@ -453,7 +453,7 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
             print("Đã click vào trường 'Họ và tên'.")
             full_name_input.send_keys(full_name)  # Sau đó mới nhập
             print(f"Đã điền tên: {full_name}")
-            time.sleep(1)
+            time.sleep(2)
 
             phone_number_input_selector = (By.XPATH, "//input[@ng-model='item.Mobile' and @type='text']")
             phone_number_input = WebDriverWait(driver, 5).until(
@@ -471,7 +471,7 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         except Exception as e:
             return {"status": "error", "message": f"Lỗi khi điền thông tin cá nhân: {e}"}
 
-        time.sleep(1)
+        time.sleep(2)
         print("Đang tìm và click nút 'Tạo mới (F4)' để lưu khách hàng...")
         try:
             # Sử dụng XPATH để tìm nút dựa trên class 'btn-success' và text 'Tạo mới(F4)'
@@ -482,7 +482,7 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
             )
             create_new_customer_button.click()
             print("Đã click nút 'Tạo mới (F4)' để lưu khách hàng mới.")
-            time.sleep(2)  # Đợi trang chi tiết tải hoàn tất và các script load
+            time.sleep(5)  # Đợi trang chi tiết tải hoàn tất và các script load
         except TimeoutException as e:
             return {"status": "error",
                     "message": f"Không tìm thấy nút 'Tạo mới (F4)' hoặc quá trình lưu không phản hồi hoặc không chuyển hướng đúng trang: {e}"}

@@ -1,4 +1,3 @@
-
 interface LanguageSelectorProps {
     language: string;
     setLanguage: (lang: string) => void;
@@ -35,6 +34,7 @@ export function LanguageSelector({ language, setLanguage }: LanguageSelectorProp
             >
                 <span>VI</span>
             </button>
+            <span className="ml-3 text-sm text-gray-500">Thay đổi ngôn ngữ/ Change Language</span>
         </div>
     );
 }

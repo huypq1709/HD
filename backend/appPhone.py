@@ -37,53 +37,65 @@ def run_automation(phone, customer_type):
     result = None
 
     try:
+        print(f"[DEBUG] Truy cập trang Timesoft...")
         driver.get("https://hdfitnessyoga.timesoft.vn/")
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
+        print(f"[DEBUG] Đăng nhập...")
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
+        WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
 
         # Đợi trang load sau khi đăng nhập
         time.sleep(3)
 
-        # Đợi radio_all xuất hiện và click
-        radio_all = WebDriverWait(driver, 10).until(
+        print(f"[DEBUG] Đợi radio_all xuất hiện...")
+        radio_all = WebDriverWait(driver, 30).until(
             EC.element_to_be_clickable((By.ID, "radio_0"))
         )
         radio_all.click()
+        print(f"[DEBUG] Đã click radio_all.")
 
-        # Đợi input search xuất hiện
-        search_input = WebDriverWait(driver, 10).until(
+        print(f"[DEBUG] Đợi input search xuất hiện...")
+        search_input = WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
         )
         search_input.clear()
+        print(f"[DEBUG] Nhập số điện thoại: {phone}")
         search_input.send_keys(phone)
         search_input.send_keys(Keys.ENTER)
 
         # Đợi kết quả tìm kiếm load
+        print(f"[DEBUG] Đợi kết quả tìm kiếm load...")
         time.sleep(3)
 
         # Kiểm tra kết quả tìm kiếm
         try:
-            # Đợi tối đa 10 giây cho kết quả tìm kiếm
-            WebDriverWait(driver, 10).until(
+            print(f"[DEBUG] Đợi kết quả tìm kiếm xuất hiện (dòng dữ liệu)...")
+            WebDriverWait(driver, 30).until(
                 EC.presence_of_element_located((By.XPATH,
                                                 "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']"))
             )
+            print(f"[DEBUG] Đã tìm thấy dòng dữ liệu. Lấy HTML bảng...")
+            html_content = driver.page_source
+            print(f"[DEBUG] HTML kết quả (cắt 1000 ký tự):\n{html_content[:1000]}")
             result = "found"
-        except:
+        except Exception as e1:
+            print(f"[DEBUG] Không tìm thấy dòng dữ liệu, thử kiểm tra thông báo không có bản ghi...")
             try:
-                # Đợi tối đa 10 giây cho thông báo không tìm thấy
-                WebDriverWait(driver, 10).until(EC.visibility_of_element_located(
+                WebDriverWait(driver, 30).until(EC.visibility_of_element_located(
                     (By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")))
+                print(f"[DEBUG] Không tìm thấy bản ghi nào cho số {phone}.")
+                html_content = driver.page_source
+                print(f"[DEBUG] HTML thông báo không có bản ghi (cắt 1000 ký tự):\n{html_content[:1000]}")
                 result = "not_found"
-            except:
+            except Exception as e2:
+                print(f"[ERROR] Lỗi khi kiểm tra kết quả tìm kiếm cho số {phone}: {e2}\n{traceback.format_exc()}")
                 result = "error_checking"
 
         print(f"Kết quả tự động hóa cho số điện thoại {phone}: {result}, Loại khách hàng: {customer_type}")
 
     except Exception as e:
         error_message = f"Lỗi tự động hóa (ĐT: {phone}, Loại: {customer_type}): {str(e)}\n{traceback.format_exc()}"
-        print(error_message)
+        print(f"[ERROR] {error_message}")
         result = "automation_error"
     finally:
         if 'driver' in locals():

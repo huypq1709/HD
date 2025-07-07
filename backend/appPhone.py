@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 import traceback
 from selenium.webdriver.chrome.service import Service as ChromeService
 import time
+from selenium.common.exceptions import TimeoutException
 
 app = Flask(__name__)
 CORS(app)
@@ -64,32 +65,24 @@ def run_automation(phone, customer_type):
         search_input.send_keys(Keys.ENTER)
 
         # Đợi kết quả tìm kiếm load
-        print(f"[DEBUG] Đợi kết quả tìm kiếm load...")
-        time.sleep(3)
-
-        # Kiểm tra kết quả tìm kiếm
+        print(f"[DEBUG] Đợi kết quả tìm kiếm (có khách hoặc không có khách)...")
+        time.sleep(2)  # Đợi trang phản hồi sơ bộ
         try:
-            print(f"[DEBUG] Đợi kết quả tìm kiếm xuất hiện (dòng dữ liệu)...")
-            WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located((By.XPATH,
-                                                "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']"))
-            )
-            print(f"[DEBUG] Đã tìm thấy dòng dữ liệu. Lấy HTML bảng...")
+            def either_result(driver):
+                found = driver.find_elements(By.XPATH, "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']")
+                if found:
+                    return "found"
+                not_found = driver.find_elements(By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")
+                if not_found:
+                    return "not_found"
+                return False
+
+            result = WebDriverWait(driver, 30).until(either_result)
             html_content = driver.page_source
             print(f"[DEBUG] HTML kết quả (cắt 1000 ký tự):\n{html_content[:1000]}")
-            result = "found"
-        except Exception as e1:
-            print(f"[DEBUG] Không tìm thấy dòng dữ liệu, thử kiểm tra thông báo không có bản ghi...")
-            try:
-                WebDriverWait(driver, 30).until(EC.visibility_of_element_located(
-                    (By.XPATH, "//td[@colspan='12' and contains(text(), 'Không tìm thấy bản ghi nào')]")))
-                print(f"[DEBUG] Không tìm thấy bản ghi nào cho số {phone}.")
-                html_content = driver.page_source
-                print(f"[DEBUG] HTML thông báo không có bản ghi (cắt 1000 ký tự):\n{html_content[:1000]}")
-                result = "not_found"
-            except Exception as e2:
-                print(f"[ERROR] Lỗi khi kiểm tra kết quả tìm kiếm cho số {phone}: {e2}\n{traceback.format_exc()}")
-                result = "error_checking"
+        except TimeoutException:
+            print(f"[ERROR] Timeout khi kiểm tra kết quả tìm kiếm cho số {phone}")
+            result = "error_checking"
 
         print(f"Kết quả tự động hóa cho số điện thoại {phone}: {result}, Loại khách hàng: {customer_type}")
 

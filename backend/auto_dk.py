@@ -28,36 +28,107 @@ def _initialize_driver():
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-web-security")
+    chrome_options.add_argument("--allow-running-insecure-content")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+    
     # Tối ưu: tắt tải ảnh, font, stylesheet (và JS nếu không cần)
     prefs = {
         "profile.managed_default_content_settings.images": 2,
         "profile.managed_default_content_settings.fonts": 2,
         "profile.managed_default_content_settings.stylesheets": 2,
+        "profile.default_content_setting_values.notifications": 2,
+        "profile.managed_default_content_settings.popups": 2,
         # "profile.managed_default_content_settings.javascript": 2,  # Bật nếu KHÔNG cần JS
     }
     chrome_options.add_experimental_option("prefs", prefs)
+    
     try:
         service = ChromeService()
         driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # Thêm script để ẩn webdriver
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
+        # Set timeout cho page load
+        driver.set_page_load_timeout(30)
+        driver.implicitly_wait(10)
+        
+        print("✅ Đã khởi tạo trình duyệt thành công")
         return driver
     except WebDriverException as e:
-        print(f"Lỗi khởi tạo Chrome driver: {e}")
+        print(f"❌ Lỗi khởi tạo Chrome driver: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ Lỗi không xác định khi khởi tạo driver: {e}")
         return None
 
 def _login_to_timesoft(driver: webdriver.Chrome):
     """Thực hiện các bước đăng nhập vào Timesoft."""
-    try:
-        driver.get("https://hdfitnessyoga.timesoft.vn/")
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "UserName"))).send_keys("Vuongvv")
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "Password"))).send_keys("291199")
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
-        # Đợi trang chính xuất hiện (ví dụ: kiểm tra một phần tử đặc trưng sau đăng nhập)
-        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "radio_0")))
-        return True
-    except TimeoutException:
-        return False
-    except Exception as e:
-        return False
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"🔄 Thử đăng nhập lần {attempt + 1}/{max_retries}...")
+            
+            driver.get("https://hdfitnessyoga.timesoft.vn/")
+            print("✅ Đã truy cập trang web")
+            
+            # Đợi trang load hoàn toàn
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            
+            # Đợi form đăng nhập xuất hiện
+            username_field = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.ID, "UserName"))
+            )
+            password_field = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.ID, "Password"))
+            )
+            
+            # Clear và nhập thông tin đăng nhập
+            username_field.clear()
+            username_field.send_keys("Vuongvv")
+            print("✅ Đã nhập username")
+            
+            password_field.clear()
+            password_field.send_keys("291199")
+            print("✅ Đã nhập password")
+            
+            # Click nút đăng nhập
+            login_button = WebDriverWait(driver, 15).until(
+                EC.element_to_be_clickable((By.ID, "btnLogin"))
+            )
+            login_button.click()
+            print("✅ Đã click nút đăng nhập")
+            
+            # Đợi trang chính xuất hiện (kiểm tra một phần tử đặc trưng sau đăng nhập)
+            WebDriverWait(driver, 25).until(
+                EC.presence_of_element_located((By.ID, "radio_0"))
+            )
+            print("✅ Đăng nhập thành công!")
+            return True
+            
+        except TimeoutException as e:
+            print(f"❌ Timeout khi đăng nhập lần {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                print("🔄 Thử lại sau 3 giây...")
+                time.sleep(3)
+            else:
+                print("❌ Đăng nhập thất bại sau tất cả các lần thử")
+                return False
+        except Exception as e:
+            print(f"❌ Lỗi không xác định khi đăng nhập lần {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                print("🔄 Thử lại sau 3 giây...")
+                time.sleep(3)
+            else:
+                print("❌ Đăng nhập thất bại sau tất cả các lần thử")
+                return False
+    
+    return False
 
 
 # automation_app.py
@@ -113,39 +184,131 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
         except Exception as e:
             return {"status": "error", "message": f"Lỗi trong quá trình tìm khách hàng: {e}"}
 
-        # BƯỚC 2: Click vào biểu tượng "Đăng ký gói tập" (dấu cộng) (Giữ nguyên)
+        # BƯỚC 2: Click vào biểu tượng "Đăng ký gói tập" (dấu cộng) (Cải thiện error handling)
         try:
-            register_icon = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, '//a[contains(@ng-click, "showRegisterModal")]//i[@class="fa fa-plus ts-register"]'))
-            )
-            register_icon.click()
-            time.sleep(2)
-        except TimeoutException as e:
-            return {"status": "error", "message": f"Tự động hóa thất bại ở bước Đăng ký gói tập: {e}"}
+            # Thử nhiều cách khác nhau để tìm nút đăng ký gói tập
+            register_icon = None
+            
+            # Cách 1: Tìm theo XPath với class và ng-click
+            try:
+                register_icon = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable(
+                        (By.XPATH, '//a[contains(@ng-click, "showRegisterModal")]//i[@class="fa fa-plus ts-register"]'))
+                )
+            except TimeoutException:
+                print("Cách 1 thất bại, thử cách 2...")
+                
+                # Cách 2: Tìm theo class name
+                try:
+                    register_icon = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CLASS_NAME, "ts-register"))
+                    )
+                except TimeoutException:
+                    print("Cách 2 thất bại, thử cách 3...")
+                    
+                    # Cách 3: Tìm theo text content
+                    try:
+                        register_icon = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'fa-plus')]"))
+                        )
+                    except TimeoutException:
+                        print("Cách 3 thất bại, thử cách 4...")
+                        
+                        # Cách 4: Tìm theo link text
+                        try:
+                            register_icon = WebDriverWait(driver, 10).until(
+                                EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Đăng ký') or contains(., 'Register')]"))
+                            )
+                        except TimeoutException:
+                            # Nếu tất cả cách đều thất bại, lấy HTML để debug
+                            current_html = driver.page_source
+                            print(f"Không tìm thấy nút đăng ký gói tập. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                            return {"status": "error", "message": "Không tìm thấy nút đăng ký gói tập. Vui lòng kiểm tra lại trang web hoặc liên hệ hỗ trợ."}
+            
+            if register_icon:
+                # Thử click bình thường trước
+                try:
+                    register_icon.click()
+                except ElementClickInterceptedException:
+                    # Nếu bị chặn, dùng JavaScript click
+                    driver.execute_script("arguments[0].click();", register_icon)
+                
+                time.sleep(2)
+                
+                # Kiểm tra xem modal đã mở chưa
+                try:
+                    WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
+                    )
+                except TimeoutException:
+                    return {"status": "error", "message": "Đã click nút đăng ký gói tập nhưng modal không mở. Vui lòng thử lại."}
+                    
         except Exception as e:
-            return {"status": "error", "message": f"Lỗi trong quá trình click Đăng ký gói tập: {e}"}
+            return {"status": "error", "message": f"Lỗi trong quá trình click Đăng ký gói tập: {str(e)}"}
 
-        # BƯỚC 3: Click vào md-select để mở dropdown "Chọn nhóm dịch vụ" (Giữ nguyên JS click)
+        # BƯỚC 3: Click vào md-select để mở dropdown "Chọn nhóm dịch vụ" (Cải thiện error handling)
         print(f"🏋️‍♀️ Đang mở dropdown 'Chọn nhóm dịch vụ'...")
         try:
-            service_group_select_element = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
-            )
-            driver.execute_script("arguments[0].click();", service_group_select_element)
+            service_group_select_element = None
+            
+            # Cách 1: Tìm theo placeholder
+            try:
+                service_group_select_element = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
+                )
+            except TimeoutException:
+                print("Cách 1 thất bại, thử cách 2...")
+                
+                # Cách 2: Tìm theo ng-model
+                try:
+                    service_group_select_element = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model*="Service"]'))
+                    )
+                except TimeoutException:
+                    print("Cách 2 thất bại, thử cách 3...")
+                    
+                    # Cách 3: Tìm theo text content
+                    try:
+                        service_group_select_element = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//md-select[contains(., 'Chọn nhóm dịch vụ') or contains(., 'Service Group')]"))
+                        )
+                    except TimeoutException:
+                        print("Cách 3 thất bại, thử cách 4...")
+                        
+                        # Cách 4: Tìm tất cả md-select và chọn cái đầu tiên
+                        try:
+                            all_md_selects = driver.find_elements(By.CSS_SELECTOR, 'md-select')
+                            if all_md_selects:
+                                service_group_select_element = all_md_selects[0]
+                                print(f"Tìm thấy {len(all_md_selects)} md-select elements, sử dụng cái đầu tiên")
+                            else:
+                                raise Exception("Không tìm thấy md-select nào")
+                        except Exception as e:
+                            current_html = driver.page_source
+                            print(f"Không tìm thấy dropdown chọn nhóm dịch vụ. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                            return {"status": "error", "message": "Không tìm thấy dropdown chọn nhóm dịch vụ. Vui lòng kiểm tra lại trang web."}
+            
+            if service_group_select_element:
+                # Thử click bình thường trước
+                try:
+                    service_group_select_element.click()
+                except ElementClickInterceptedException:
+                    # Nếu bị chặn, dùng JavaScript click
+                    driver.execute_script("arguments[0].click();", service_group_select_element)
 
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
-            )
-            time.sleep(1.5)
-        except TimeoutException as e:
-
-            return {"status": "error", "message": f"Tự động hóa thất bại ở bước mở nhóm dịch vụ: {e}"}
+                # Đợi dropdown mở
+                try:
+                    WebDriverWait(driver, 10).until(
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                    )
+                    time.sleep(1.5)
+                except TimeoutException:
+                    return {"status": "error", "message": "Đã click dropdown nhưng menu không mở. Vui lòng thử lại."}
+                    
         except Exception as e:
+            return {"status": "error", "message": f"Lỗi trong quá trình mở nhóm dịch vụ: {str(e)}"}
 
-            return {"status": "error", "message": f"Lỗi trong quá trình mở nhóm dịch vụ: {e}"}
-
-        # BƯỚC 3b: Chọn nhóm dịch vụ (Gym/Yoga) - SAU KHI DROPDOWN ĐÃ MỞ (Giữ nguyên chọn theo Index)
+        # BƯỚC 3b: Chọn nhóm dịch vụ (Gym/Yoga) - Cải thiện error handling
         print(f"🏋️‍♀️ Đang chọn nhóm dịch vụ: {service_type.upper()}...")
         try:
             target_index_service = -1
@@ -155,256 +318,455 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                 target_index_service = 2
 
             if target_index_service == -1:
-
                 return {"status": "error",
                         "message": f"Loại dịch vụ '{service_type}' không hợp lệ hoặc không có index được ánh xạ."}
 
-            service_option_element = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.XPATH,
-                                            f'//md-select-menu//md-optgroup[@label="Chọn chức danh"]/md-option[{target_index_service}]'
-                                            ))
-            )
-
+            service_option_element = None
+            
+            # Cách 1: Tìm theo XPath với optgroup label
             try:
-                service_option_element.click()
-
-            except ElementClickInterceptedException as e:
-
-                driver.execute_script("arguments[0].click();", service_option_element)
-
-
-            time.sleep(1)
-
-        except TimeoutException as e:
-
-            return {"status": "error",
-                    "message": f"Tự động hóa thất bại ở bước chọn nhóm dịch vụ (Timeout theo index): {e}"}
-        except NoSuchElementException as e:
-
-            return {"status": "error", "message": f"Không tìm thấy tùy chọn '{service_type}' theo vị trí đã định: {e}"}
-        except Exception as e:
-
-            return {"status": "error", "message": f"Lỗi trong quá trình chọn nhóm dịch vụ theo index: {e}"}
-
-        # BƯỚC 4: Chọn gói tập (SỬA ĐỔI LẠI - CHỌN MAP DỰA TRÊN service_type)
-
-        try:
-            product_select = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model="item.ProductIdStr"]'))
-            )
-            product_select.click()
-
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
-            )
-            time.sleep(1)
-
-            # Chọn map dựa trên service_type
-            current_membership_map = None
-            if service_type.lower() == "gym":
-                current_membership_map = MEMBERSHIP_INDEX_MAP_GYM
-            elif service_type.lower() == "yoga":
-                current_membership_map = MEMBERSHIP_INDEX_MAP_YOGA
-            else:
-
-                return {"status": "error",
-                        "message": f"Loại dịch vụ '{service_type}' không hợp lệ hoặc không có map gói tập được định nghĩa."}
-
-            target_index_membership_xpath_part = current_membership_map.get(membership_type)
-            if target_index_membership_xpath_part is None:
-
-                return {"status": "error",
-                        "message": f"Gói tập '{membership_type}' không hợp lệ hoặc không có index được ánh xạ trong map của {service_type.upper()}."}
-
-            # Xây dựng XPath sử dụng md-optgroup label="Tìm gói"
-            membership_option_xpath = (
-                f'//md-select-menu//md-optgroup[@label="Tìm gói"]/md-option[{target_index_membership_xpath_part}]'
-            )
-
-            membership_option_element = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.XPATH, membership_option_xpath))
-            )
-
-            try:
-                membership_option_element.click()
-
-            except ElementClickInterceptedException as e:
-
-                driver.execute_script("arguments[0].click();", membership_option_element)
-
-
-            time.sleep(1)
-
-        except TimeoutException as e:
-
-            return {"status": "error", "message": f"Tự động hóa thất bại ở bước chọn gói tập (Timeout theo index): {e}"}
-        except NoSuchElementException as e:
-
-            return {"status": "error",
-                    "message": f"Không tìm thấy gói tập '{membership_type}' theo vị trí đã định cho {service_type}: {e}"}
-        except Exception as e:
-
-            return {"status": "error", "message": f"Lỗi trong quá trình chọn gói tập theo index: {e}"}
-
-        # Sau khi chọn gói tập thành công, chỉnh lại tổng tiền
-        # --- BỎ QUA BƯỚC NÀY THEO YÊU CẦU ---
-        # try:
-        #     # Tìm input tổng tiền
-        #     total_pay_input = WebDriverWait(driver, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, 'input[ng-model="item.TotalPay"]'))
-        #     )
-        #     # Ctrl+A và xóa toàn bộ
-        #     total_pay_input.click()
-        #     total_pay_input.send_keys(Keys.CONTROL, 'a')
-        #     total_pay_input.send_keys(Keys.BACKSPACE)
-        #     time.sleep(0.2)
-        #     # Tính lại số tiền đúng
-        #     def calculate_membership_price(membership_type, service_type):
-        #         if membership_type == "1 day":
-        #             if service_type == "gym":
-        #                 return 60000
-        #             return 0
-        #         if service_type == "gym":
-        #             BASE_MONTHLY_PRICE_VND = 600000
-        #             DURATION_IN_MONTHS = {
-        #                 "1 month": 1,
-        #                 "3 months": 3,
-        #                 "6 months": 6,
-        #                 "1 year": 12,
-        #             }
-        #             STANDARD_DURATION_DISCOUNTS = {
-        #                 "1 month": 0,
-        #                 "3 months": 0.10,
-        #                 "6 months": 0.15,
-        #                 "1 year": 0.20,
-        #             }
-        #             months = DURATION_IN_MONTHS.get(membership_type)
-        #             if not months:
-        #                 return 0
-        #             total_gross = BASE_MONTHLY_PRICE_VND * months
-        #             standard_discount = STANDARD_DURATION_DISCOUNTS.get(membership_type, 0)
-        #             price_after_standard = total_gross * (1 - standard_discount)
-        #             return round(price_after_standard)
-        #         if service_type == "yoga":
-        #             YOGA_BASE_PRICES = {
-        #                 "1 month": 600000,
-        #                 "3 months": 1620000,
-        #                 "6 months": 3060000,
-        #                 "1 year": 5760000,
-        #             }
-        #             base_price = YOGA_BASE_PRICES.get(membership_type)
-        #             if not base_price:
-        #                 return 0
-        #             return base_price
-        #         return 0
-        #     total_price = calculate_membership_price(membership_type, service_type)
-        #     # Set giá trị input bằng JavaScript
-        #     driver.execute_script("arguments[0].value = arguments[1];", total_pay_input, str(total_price))
-        #     time.sleep(0.2)
-        #     # Gọi changeTotalPay() bằng blur input (nếu cần)
-        #     total_pay_input.send_keys(Keys.TAB)
-        #     time.sleep(0.5)
-        # except Exception as e:
-        #     return {"status": "error", "message": f"Lỗi khi chỉnh sửa tổng tiền: {e}"}
-
-        # BƯỚC 5: Chọn kiểu thanh toán (Giữ nguyên)
-
-        try:
-            payment_type_select = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model="item.PaymentType"]'))
-            )
-            payment_type_select.click()
-
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
-            )
-            time.sleep(1)
-
-            transfer_option_element = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH,
-                                            '//md-select-menu//md-optgroup[@label="Chọn kiểu thanh toán"]/md-option[2]'
-                                            ))
-            )
-            transfer_option_element.click()
-
-            time.sleep(1)
-        except ElementClickInterceptedException as e:
-
-            driver.execute_script("arguments[0].click();", transfer_option_element)
-
-            time.sleep(1)
-        except TimeoutException as e:
-
-            return {"status": "error", "message": f"Tự động hóa thất bại ở bước chọn kiểu thanh toán: {e}"}
-        except NoSuchElementException as e:
-
-            return {"status": "error", "message": f"Tùy chọn thanh toán 'Chuyển khoản' không tìm thấy: {e}"}
-        except Exception as e:
-
-            return {"status": "error", "message": f"Lỗi trong quá trình chọn kiểu thanh toán: {e}"}
-
-        # BƯỚC 6: Chọn tài khoản duy nhất (Giữ nguyên từ lần sửa đổi gần nhất - Dùng Index 1 trong md-optgroup + JS Click)
-
-        try:
-            bank_account_select = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model="item.BankAccountIdStr"]'))
-            )
-            driver.execute_script("arguments[0].click();", bank_account_select)
-
-
-            WebDriverWait(driver, 15).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
-            )
-            time.sleep(2)
-
-            bank_account_option_element = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH,
-                                                '//md-select-menu//md-optgroup[@label="Chọn tài khoản"]/md-option[1]'
+                service_option_element = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH,
+                                                f'//md-select-menu//md-optgroup[@label="Chọn chức danh"]/md-option[{target_index_service}]'
                                                 ))
-            )
+                )
+            except TimeoutException:
+                print("Cách 1 thất bại, thử cách 2...")
+                
+                # Cách 2: Tìm theo text content
+                try:
+                    if service_type.lower() == "gym":
+                        service_option_element = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//md-option[contains(text(), 'GYM') or contains(text(), 'Gym')]"))
+                        )
+                    elif service_type.lower() == "yoga":
+                        service_option_element = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//md-option[contains(text(), 'YOGA') or contains(text(), 'Yoga')]"))
+                        )
+                except TimeoutException:
+                    print("Cách 2 thất bại, thử cách 3...")
+                    
+                    # Cách 3: Tìm tất cả options và chọn theo index
+                    try:
+                        all_options = driver.find_elements(By.CSS_SELECTOR, 'md-select-menu md-option')
+                        if len(all_options) >= target_index_service:
+                            service_option_element = all_options[target_index_service - 1]
+                            print(f"Tìm thấy {len(all_options)} options, chọn option thứ {target_index_service}")
+                        else:
+                            raise Exception(f"Chỉ có {len(all_options)} options, không đủ để chọn option thứ {target_index_service}")
+                    except Exception as e:
+                        current_html = driver.page_source
+                        print(f"Không tìm thấy option cho {service_type}. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                        return {"status": "error", 
+                                "message": f"Không tìm thấy tùy chọn '{service_type}' trong dropdown. Vui lòng kiểm tra lại."}
 
-            driver.execute_script("arguments[0].click();", bank_account_option_element)
+            if service_option_element:
+                # Thử click bình thường trước
+                try:
+                    service_option_element.click()
+                except ElementClickInterceptedException:
+                    # Nếu bị chặn, dùng JavaScript click
+                    driver.execute_script("arguments[0].click();", service_option_element)
 
+                time.sleep(1)
+                
+                # Kiểm tra xem option đã được chọn chưa
+                try:
+                    WebDriverWait(driver, 5).until(
+                        EC.invisibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                    )
+                except TimeoutException:
+                    return {"status": "error", "message": f"Đã click option {service_type} nhưng dropdown không đóng. Vui lòng thử lại."}
 
-
-            time.sleep(1)
-        except TimeoutException as e:
-
-            try:
-                current_html = driver.page_source
-            except Exception as html_err:
-                return {"status": "error", "message": f"Tự động hóa thất bại ở bước chọn tài khoản: {e}"}
-        except NoSuchElementException as e:
-
-            return {"status": "error", "message": f"Không tìm thấy tùy chọn tài khoản ở vị trí đầu tiên: {e}"}
         except Exception as e:
+            return {"status": "error", "message": f"Lỗi trong quá trình chọn nhóm dịch vụ: {str(e)}"}
 
-            return {"status": "error", "message": f"Lỗi trong quá trình chọn tài khoản: {e}"}
-
-        # BƯỚC 7: Bấm nút "Tạo mới" (Tạo gói tập) (Giữ nguyên)
-
+        # BƯỚC 4: Chọn gói tập - Cải thiện error handling
+        print(f"🏋️‍♀️ Đang chọn gói tập: {membership_type}...")
         try:
-            create_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.ID, "aInsert"))
-            )
-            create_button.click()
+            product_select = None
+            
+            # Cách 1: Tìm theo ng-model
+            try:
+                product_select = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model="item.ProductIdStr"]'))
+                )
+            except TimeoutException:
+                print("Cách 1 thất bại, thử cách 2...")
+                
+                # Cách 2: Tìm theo placeholder
+                try:
+                    product_select = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[placeholder*="gói"]'))
+                    )
+                except TimeoutException:
+                    print("Cách 2 thất bại, thử cách 3...")
+                    
+                    # Cách 3: Tìm tất cả md-select và chọn cái thứ 2 (sau service group)
+                    try:
+                        all_md_selects = driver.find_elements(By.CSS_SELECTOR, 'md-select')
+                        if len(all_md_selects) >= 2:
+                            product_select = all_md_selects[1]
+                            print(f"Tìm thấy {len(all_md_selects)} md-select elements, sử dụng cái thứ 2")
+                        else:
+                            raise Exception(f"Chỉ có {len(all_md_selects)} md-select elements, không đủ để chọn cái thứ 2")
+                    except Exception as e:
+                        current_html = driver.page_source
+                        print(f"Không tìm thấy dropdown chọn gói tập. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                        return {"status": "error", "message": "Không tìm thấy dropdown chọn gói tập. Vui lòng kiểm tra lại trang web."}
+            
+            if product_select:
+                # Click để mở dropdown
+                try:
+                    product_select.click()
+                except ElementClickInterceptedException:
+                    driver.execute_script("arguments[0].click();", product_select)
 
-            WebDriverWait(driver, 15).until(EC.invisibility_of_element_located((By.ID, "aInsert")))
+                # Đợi dropdown mở
+                try:
+                    WebDriverWait(driver, 10).until(
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                    )
+                    time.sleep(1)
+                except TimeoutException:
+                    return {"status": "error", "message": "Đã click dropdown gói tập nhưng menu không mở. Vui lòng thử lại."}
 
-            return {"status": "success", "message": "Gia hạn gói tập thành công.", "final_action": "return_home"}
-        except TimeoutException as e:
+                # Chọn map dựa trên service_type
+                current_membership_map = None
+                if service_type.lower() == "gym":
+                    current_membership_map = MEMBERSHIP_INDEX_MAP_GYM
+                elif service_type.lower() == "yoga":
+                    current_membership_map = MEMBERSHIP_INDEX_MAP_YOGA
+                else:
+                    return {"status": "error",
+                            "message": f"Loại dịch vụ '{service_type}' không hợp lệ hoặc không có map gói tập được định nghĩa."}
 
-            return {"status": "error", "message": f"Tự động hóa thất bại ở bước tạo gói tập: {e}"}
+                target_index_membership_xpath_part = current_membership_map.get(membership_type)
+                if target_index_membership_xpath_part is None:
+                    return {"status": "error",
+                            "message": f"Gói tập '{membership_type}' không hợp lệ hoặc không có index được ánh xạ trong map của {service_type.upper()}."}
+
+                # Tìm và chọn gói tập
+                membership_option_element = None
+                
+                # Cách 1: Tìm theo XPath với optgroup label
+                try:
+                    membership_option_xpath = (
+                        f'//md-select-menu//md-optgroup[@label="Tìm gói"]/md-option[{target_index_membership_xpath_part}]'
+                    )
+                    membership_option_element = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, membership_option_xpath))
+                    )
+                except TimeoutException:
+                    print("Cách 1 thất bại, thử cách 2...")
+                    
+                    # Cách 2: Tìm theo text content
+                    try:
+                        membership_option_element = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, f"//md-option[contains(text(), '{membership_type}')]"))
+                        )
+                    except TimeoutException:
+                        print("Cách 2 thất bại, thử cách 3...")
+                        
+                        # Cách 3: Tìm tất cả options và chọn theo index
+                        try:
+                            all_membership_options = driver.find_elements(By.CSS_SELECTOR, 'md-select-menu md-option')
+                            if len(all_membership_options) >= target_index_membership_xpath_part:
+                                membership_option_element = all_membership_options[target_index_membership_xpath_part - 1]
+                                print(f"Tìm thấy {len(all_membership_options)} membership options, chọn option thứ {target_index_membership_xpath_part}")
+                            else:
+                                raise Exception(f"Chỉ có {len(all_membership_options)} membership options, không đủ để chọn option thứ {target_index_membership_xpath_part}")
+                        except Exception as e:
+                            current_html = driver.page_source
+                            print(f"Không tìm thấy gói tập {membership_type}. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                            return {"status": "error",
+                                    "message": f"Không tìm thấy gói tập '{membership_type}' trong dropdown. Vui lòng kiểm tra lại."}
+
+                if membership_option_element:
+                    # Click để chọn gói tập
+                    try:
+                        membership_option_element.click()
+                    except ElementClickInterceptedException:
+                        driver.execute_script("arguments[0].click();", membership_option_element)
+
+                    time.sleep(1)
+                    
+                    # Kiểm tra xem gói tập đã được chọn chưa
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                        )
+                    except TimeoutException:
+                        return {"status": "error", "message": f"Đã click gói tập {membership_type} nhưng dropdown không đóng. Vui lòng thử lại."}
+
         except Exception as e:
+            return {"status": "error", "message": f"Lỗi trong quá trình chọn gói tập: {str(e)}"}
 
-            return {"status": "error", "message": f"Lỗi trong quá trình tạo gói tập: {e}"}
+        # BƯỚC 5: Chọn kiểu thanh toán - Cải thiện error handling
+        print("🏋️‍♀️ Đang chọn kiểu thanh toán...")
+        try:
+            payment_type_select = None
+            
+            # Cách 1: Tìm theo ng-model
+            try:
+                payment_type_select = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model="item.PaymentType"]'))
+                )
+            except TimeoutException:
+                print("Cách 1 thất bại, thử cách 2...")
+                
+                # Cách 2: Tìm theo placeholder
+                try:
+                    payment_type_select = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[placeholder*="thanh toán"]'))
+                    )
+                except TimeoutException:
+                    print("Cách 2 thất bại, thử cách 3...")
+                    
+                    # Cách 3: Tìm tất cả md-select và chọn cái thứ 3 (sau service group và product)
+                    try:
+                        all_md_selects = driver.find_elements(By.CSS_SELECTOR, 'md-select')
+                        if len(all_md_selects) >= 3:
+                            payment_type_select = all_md_selects[2]
+                            print(f"Tìm thấy {len(all_md_selects)} md-select elements, sử dụng cái thứ 3")
+                        else:
+                            raise Exception(f"Chỉ có {len(all_md_selects)} md-select elements, không đủ để chọn cái thứ 3")
+                    except Exception as e:
+                        current_html = driver.page_source
+                        print(f"Không tìm thấy dropdown chọn kiểu thanh toán. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                        return {"status": "error", "message": "Không tìm thấy dropdown chọn kiểu thanh toán. Vui lòng kiểm tra lại trang web."}
+            
+            if payment_type_select:
+                # Click để mở dropdown
+                try:
+                    payment_type_select.click()
+                except ElementClickInterceptedException:
+                    driver.execute_script("arguments[0].click();", payment_type_select)
+
+                # Đợi dropdown mở
+                try:
+                    WebDriverWait(driver, 10).until(
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                    )
+                    time.sleep(1)
+                except TimeoutException:
+                    return {"status": "error", "message": "Đã click dropdown kiểu thanh toán nhưng menu không mở. Vui lòng thử lại."}
+
+                # Chọn tùy chọn "Chuyển khoản"
+                transfer_option_element = None
+                
+                # Cách 1: Tìm theo XPath với optgroup label
+                try:
+                    transfer_option_element = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH,
+                                                    '//md-select-menu//md-optgroup[@label="Chọn kiểu thanh toán"]/md-option[2]'
+                                                    ))
+                    )
+                except TimeoutException:
+                    print("Cách 1 thất bại, thử cách 2...")
+                    
+                    # Cách 2: Tìm theo text content
+                    try:
+                        transfer_option_element = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//md-option[contains(text(), 'Chuyển khoản') or contains(text(), 'Transfer')]"))
+                        )
+                    except TimeoutException:
+                        print("Cách 2 thất bại, thử cách 3...")
+                        
+                        # Cách 3: Tìm tất cả options và chọn cái thứ 2
+                        try:
+                            all_payment_options = driver.find_elements(By.CSS_SELECTOR, 'md-select-menu md-option')
+                            if len(all_payment_options) >= 2:
+                                transfer_option_element = all_payment_options[1]
+                                print(f"Tìm thấy {len(all_payment_options)} payment options, chọn option thứ 2")
+                            else:
+                                raise Exception(f"Chỉ có {len(all_payment_options)} payment options, không đủ để chọn option thứ 2")
+                        except Exception as e:
+                            current_html = driver.page_source
+                            print(f"Không tìm thấy tùy chọn chuyển khoản. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                            return {"status": "error", "message": "Không tìm thấy tùy chọn 'Chuyển khoản' trong dropdown. Vui lòng kiểm tra lại."}
+
+                if transfer_option_element:
+                    # Click để chọn kiểu thanh toán
+                    try:
+                        transfer_option_element.click()
+                    except ElementClickInterceptedException:
+                        driver.execute_script("arguments[0].click();", transfer_option_element)
+
+                    time.sleep(1)
+                    
+                    # Kiểm tra xem option đã được chọn chưa
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                        )
+                    except TimeoutException:
+                        return {"status": "error", "message": "Đã click tùy chọn chuyển khoản nhưng dropdown không đóng. Vui lòng thử lại."}
+
+        except Exception as e:
+            return {"status": "error", "message": f"Lỗi trong quá trình chọn kiểu thanh toán: {str(e)}"}
+
+        # BƯỚC 6: Chọn tài khoản - Cải thiện error handling
+        print("🏋️‍♀️ Đang chọn tài khoản...")
+        try:
+            bank_account_select = None
+            
+            # Cách 1: Tìm theo ng-model
+            try:
+                bank_account_select = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model="item.BankAccountIdStr"]'))
+                )
+            except TimeoutException:
+                print("Cách 1 thất bại, thử cách 2...")
+                
+                # Cách 2: Tìm theo placeholder
+                try:
+                    bank_account_select = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[placeholder*="tài khoản"]'))
+                    )
+                except TimeoutException:
+                    print("Cách 2 thất bại, thử cách 3...")
+                    
+                    # Cách 3: Tìm tất cả md-select và chọn cái cuối cùng
+                    try:
+                        all_md_selects = driver.find_elements(By.CSS_SELECTOR, 'md-select')
+                        if all_md_selects:
+                            bank_account_select = all_md_selects[-1]
+                            print(f"Tìm thấy {len(all_md_selects)} md-select elements, sử dụng cái cuối cùng")
+                        else:
+                            raise Exception("Không tìm thấy md-select nào")
+                    except Exception as e:
+                        current_html = driver.page_source
+                        print(f"Không tìm thấy dropdown chọn tài khoản. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                        return {"status": "error", "message": "Không tìm thấy dropdown chọn tài khoản. Vui lòng kiểm tra lại trang web."}
+            
+            if bank_account_select:
+                # Click để mở dropdown
+                try:
+                    bank_account_select.click()
+                except ElementClickInterceptedException:
+                    driver.execute_script("arguments[0].click();", bank_account_select)
+
+                # Đợi dropdown mở
+                try:
+                    WebDriverWait(driver, 15).until(
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                    )
+                    time.sleep(2)
+                except TimeoutException:
+                    return {"status": "error", "message": "Đã click dropdown tài khoản nhưng menu không mở. Vui lòng thử lại."}
+
+                # Chọn tài khoản đầu tiên
+                bank_account_option_element = None
+                
+                # Cách 1: Tìm theo XPath với optgroup label
+                try:
+                    bank_account_option_element = WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((By.XPATH,
+                                                        '//md-select-menu//md-optgroup[@label="Chọn tài khoản"]/md-option[1]'
+                                                        ))
+                    )
+                except TimeoutException:
+                    print("Cách 1 thất bại, thử cách 2...")
+                    
+                    # Cách 2: Tìm tất cả options và chọn cái đầu tiên
+                    try:
+                        all_bank_options = driver.find_elements(By.CSS_SELECTOR, 'md-select-menu md-option')
+                        if all_bank_options:
+                            bank_account_option_element = all_bank_options[0]
+                            print(f"Tìm thấy {len(all_bank_options)} bank account options, chọn option đầu tiên")
+                        else:
+                            raise Exception("Không tìm thấy tùy chọn tài khoản nào")
+                    except Exception as e:
+                        current_html = driver.page_source
+                        print(f"Không tìm thấy tùy chọn tài khoản. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                        return {"status": "error", "message": "Không tìm thấy tùy chọn tài khoản trong dropdown. Vui lòng kiểm tra lại."}
+
+                if bank_account_option_element:
+                    # Click để chọn tài khoản
+                    try:
+                        bank_account_option_element.click()
+                    except ElementClickInterceptedException:
+                        driver.execute_script("arguments[0].click();", bank_account_option_element)
+
+                    time.sleep(1)
+                    
+                    # Kiểm tra xem option đã được chọn chưa
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
+                        )
+                    except TimeoutException:
+                        return {"status": "error", "message": "Đã click tùy chọn tài khoản nhưng dropdown không đóng. Vui lòng thử lại."}
+
+        except Exception as e:
+            return {"status": "error", "message": f"Lỗi trong quá trình chọn tài khoản: {str(e)}"}
+
+        # BƯỚC 7: Bấm nút "Tạo mới" (Tạo gói tập) - Cải thiện error handling
+        print("🏋️‍♀️ Đang tạo gói tập...")
+        try:
+            create_button = None
+            
+            # Cách 1: Tìm theo ID
+            try:
+                create_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, "aInsert"))
+                )
+            except TimeoutException:
+                print("Cách 1 thất bại, thử cách 2...")
+                
+                # Cách 2: Tìm theo text content
+                try:
+                    create_button = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Tạo mới') or contains(text(), 'Create')]"))
+                    )
+                except TimeoutException:
+                    print("Cách 2 thất bại, thử cách 3...")
+                    
+                    # Cách 3: Tìm theo class
+                    try:
+                        create_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.btn-success'))
+                        )
+                    except TimeoutException:
+                        current_html = driver.page_source
+                        print(f"Không tìm thấy nút tạo mới. HTML hiện tại (cắt 2000 ký tự): {current_html[:2000]}")
+                        return {"status": "error", "message": "Không tìm thấy nút tạo mới. Vui lòng kiểm tra lại trang web."}
+            
+            if create_button:
+                # Click để tạo gói tập
+                try:
+                    create_button.click()
+                except ElementClickInterceptedException:
+                    driver.execute_script("arguments[0].click();", create_button)
+
+                # Đợi nút biến mất (dấu hiệu đang xử lý)
+                try:
+                    WebDriverWait(driver, 15).until(EC.invisibility_of_element_located((By.ID, "aInsert")))
+                    print("✅ Gói tập đã được tạo thành công!")
+                    return {"status": "success", "message": "Gia hạn gói tập thành công.", "final_action": "return_home"}
+                except TimeoutException:
+                    return {"status": "error", "message": "Đã click nút tạo mới nhưng quá trình xử lý không hoàn tất. Vui lòng thử lại."}
+
+        except Exception as e:
+            return {"status": "error", "message": f"Lỗi trong quá trình tạo gói tập: {str(e)}"}
 
     except Exception as e:
-
-        return {"status": "error", "message": f"Lỗi không xác định trong quá trình gia hạn gói tập: {e}"}
+        print(f"❌ Lỗi không xác định trong quá trình gia hạn gói tập: {str(e)}")
+        # Lấy HTML để debug
+        try:
+            current_html = driver.page_source
+            print(f"HTML hiện tại khi lỗi (cắt 3000 ký tự): {current_html[:3000]}")
+        except Exception as html_err:
+            print(f"Không thể lấy HTML để debug: {html_err}")
+        return {"status": "error", "message": f"Lỗi không xác định trong quá trình gia hạn gói tập: {str(e)}"}
     finally:
         if driver:
-            driver.quit()
+            try:
+                driver.quit()
+                print("🔒 Đã đóng trình duyệt")
+            except Exception as quit_err:
+                print(f"Lỗi khi đóng trình duyệt: {quit_err}")
 
 
 # ... (các hàm _automate_for_new_customer_sync, @app.route, và if __name__ == '__main__': như cũ)

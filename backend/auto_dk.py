@@ -237,7 +237,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                         # Cách 4: Tìm theo link text (tăng: 4 giây)
                         try:
                             register_icon = WebDriverWait(driver, 4).until(
-                                EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Đăng ký') or contains(., 'Register')]"))
+                                EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Đăng ký') or contains(., 'Register')]") )
                             )
                         except TimeoutException:
                             # Nếu tất cả cách đều thất bại, lấy HTML để debug
@@ -246,15 +246,29 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                             return {"status": "error", "message": "Không tìm thấy nút đăng ký gói tập. Vui lòng kiểm tra lại trang web hoặc liên hệ hỗ trợ."}
             
             if register_icon:
-                # Thử click bình thường trước
-                try:
-                    register_icon.click()
-                except ElementClickInterceptedException:
-                    # Nếu bị chặn, dùng JavaScript click
-                    driver.execute_script("arguments[0].click();", register_icon)
-                
-                time.sleep(1.5)  # Tăng: 1.5 giây - đủ để modal mở hoàn toàn
-                
+                for attempt in range(3):
+                    try:
+                        try:
+                            register_icon.click()
+                        except ElementClickInterceptedException:
+                            driver.execute_script("arguments[0].click();", register_icon)
+                        time.sleep(1.2)
+                        # Kiểm tra modal đã mở chưa bằng JS
+                        modal_open = driver.execute_script('''
+                            var el = document.querySelector('md-select[placeholder="Chọn nhóm dịch vụ"]');
+                            return el && el.offsetParent !== null;
+                        ''')
+                        if modal_open:
+                            break
+                    except Exception as e:
+                        print(f"Thử mở modal lần {attempt+1} thất bại: {e}")
+                    if attempt == 2:
+                        current_html = driver.page_source
+                        print(f"Không mở được modal sau 3 lần thử. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
+                        return {"status": "error", "message": "Đã thử nhiều lần nhưng modal không mở. Vui lòng thử lại."}
+                else:
+                    # Nếu sau 3 lần vẫn chưa mở, trả về lỗi
+                    return {"status": "error", "message": "Không mở được modal đăng ký gói tập sau nhiều lần thử."}
                 # Kiểm tra xem modal đã mở chưa (tăng: 8 giây)
                 try:
                     WebDriverWait(driver, 8).until(
@@ -262,7 +276,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                     )
                 except TimeoutException:
                     return {"status": "error", "message": "Đã click nút đăng ký gói tập nhưng modal không mở. Vui lòng thử lại."}
-                    
+        
         except Exception as e:
             return {"status": "error", "message": f"Lỗi trong quá trình click Đăng ký gói tập: {str(e)}"}
 

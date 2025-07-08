@@ -169,11 +169,17 @@ MEMBERSHIP_INDEX_MAP_YOGA = {
 def _automate_for_existing_customer_sync(phone_number, service_type, membership_type):
     driver = None
     start_time = time.time()
-    
+    timer = None
     try:
         # Thiết lập timeout tổng thể
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(TOTAL_TIMEOUT)
+        if os.name != 'nt':  # Unix/Linux
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(TOTAL_TIMEOUT)
+        else:  # Windows
+            def raise_timeout():
+                raise TimeoutError(f"Quá trình automation đã vượt quá {TOTAL_TIMEOUT} giây (Windows)")
+            timer = threading.Timer(TOTAL_TIMEOUT, raise_timeout)
+            timer.start()
         
         print(f"🚀 Bắt đầu automation cho khách hàng: {phone_number}")
         
@@ -797,7 +803,10 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
         return {"status": "error", "message": f"Quá trình automation đã vượt quá {TOTAL_TIMEOUT} giây. Vui lòng thử lại."}
     finally:
         # Hủy timeout
-        signal.alarm(0)
+        if os.name != 'nt':
+            signal.alarm(0)
+        elif timer:
+            timer.cancel()
         
         if driver:
             try:
@@ -821,11 +830,17 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
 def _automate_for_new_customer_sync(phone_number, full_name, service_type, membership_type):
     driver = None
     start_time = time.time()
-    
+    timer = None
     try:
         # Thiết lập timeout tổng thể
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(TOTAL_TIMEOUT)
+        if os.name != 'nt':  # Unix/Linux
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(TOTAL_TIMEOUT)
+        else:  # Windows
+            def raise_timeout():
+                raise TimeoutError(f"Quá trình automation đã vượt quá {TOTAL_TIMEOUT} giây (Windows)")
+            timer = threading.Timer(TOTAL_TIMEOUT, raise_timeout)
+            timer.start()
         
         print(f"🚀 Bắt đầu automation cho khách hàng mới: {full_name} - {phone_number}")
         
@@ -934,7 +949,10 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         return {"status": "error", "message": f"Lỗi trong quá trình đăng ký mới: {e}"}
     finally:
         # Hủy timeout
-        signal.alarm(0)
+        if os.name != 'nt':
+            signal.alarm(0)
+        elif timer:
+            timer.cancel()
         
         if driver:
             driver.quit()

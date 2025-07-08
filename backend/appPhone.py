@@ -66,7 +66,7 @@ def run_automation(phone, customer_type):
 
         # Đợi kết quả tìm kiếm load
         print(f"[DEBUG] Đợi kết quả tìm kiếm (có khách hoặc không có khách)...")
-        time.sleep(2)  # Đợi trang phản hồi sơ bộ
+        time.sleep(4)  # Đợi trang phản hồi sơ bộ (tăng từ 2 lên 4 giây)
         try:
             def either_result(driver):
                 found = driver.find_elements(By.XPATH, "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']")

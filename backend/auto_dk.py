@@ -20,14 +20,14 @@ import signal
 app = Flask(__name__)
 CORS(app)
 
-# Timeout tổng thể cho toàn bộ quá trình automation (60 giây)
-TOTAL_TIMEOUT = 60
+# Timeout tổng thể cho toàn bộ quá trình automation (35 giây - tối ưu với đăng nhập nhanh)
+TOTAL_TIMEOUT = 35
 
 class TimeoutError(Exception):
     pass
 
 def timeout_handler(signum, frame):
-    raise TimeoutError("Quá trình automation đã vượt quá 60 giây")
+    raise TimeoutError("Quá trình automation đã vượt quá 35 giây")
 
 # --- CẤU HÌNH SELENIUM ---
 def _initialize_driver():
@@ -44,14 +44,16 @@ def _initialize_driver():
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     
-    # Tối ưu: tắt tải ảnh, font, stylesheet (và JS nếu không cần)
+    # Tối ưu: tắt tải ảnh, font, stylesheet để tăng tốc
     prefs = {
         "profile.managed_default_content_settings.images": 2,
         "profile.managed_default_content_settings.fonts": 2,
         "profile.managed_default_content_settings.stylesheets": 2,
         "profile.default_content_setting_values.notifications": 2,
         "profile.managed_default_content_settings.popups": 2,
-        # "profile.managed_default_content_settings.javascript": 2,  # Bật nếu KHÔNG cần JS
+        "profile.managed_default_content_settings.plugins": 2,
+        "profile.managed_default_content_settings.geolocation": 2,
+        "profile.managed_default_content_settings.media_stream": 2,
     }
     chrome_options.add_experimental_option("prefs", prefs)
     
@@ -62,9 +64,9 @@ def _initialize_driver():
         # Thêm script để ẩn webdriver
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
-        # Set timeout cho page load (giảm xuống để tiết kiệm thời gian)
-        driver.set_page_load_timeout(15)  # Giảm từ 30 xuống 15
-        driver.implicitly_wait(5)  # Giảm từ 10 xuống 5
+        # Set timeout tối ưu cho page load
+        driver.set_page_load_timeout(8)  # Tối ưu: 8 giây cho đăng nhập nhanh
+        driver.implicitly_wait(2)  # Tối ưu: 2 giây cho đăng nhập nhanh
         
         print("✅ Đã khởi tạo trình duyệt thành công")
         return driver
@@ -77,58 +79,68 @@ def _initialize_driver():
 
 def _login_to_timesoft(driver: webdriver.Chrome):
     """Thực hiện các bước đăng nhập vào Timesoft."""
-    max_retries = 1  # Chỉ thử 1 lần để tiết kiệm thời gian
-    for attempt in range(max_retries):
+    try:
+        print(f"🔄 Đang đăng nhập...")
+        
+        driver.get("https://hdfitnessyoga.timesoft.vn/")
+        print("✅ Đã truy cập trang web")
+        
+        # Đợi trang load hoàn toàn (tối ưu: 3 giây)
+        WebDriverWait(driver, 3).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        
+        # Đợi form đăng nhập xuất hiện (tối ưu: 2 giây)
+        username_field = WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((By.ID, "UserName"))
+        )
+        password_field = WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((By.ID, "Password"))
+        )
+        
+        # Clear và nhập thông tin đăng nhập (tối ưu: không sleep)
+        username_field.clear()
+        username_field.send_keys("Vuongvv")
+        print("✅ Đã nhập username")
+        
+        password_field.clear()
+        password_field.send_keys("291199")
+        print("✅ Đã nhập password")
+        
+        # Click nút đăng nhập (tối ưu: 2 giây)
+        login_button = WebDriverWait(driver, 2).until(
+            EC.element_to_be_clickable((By.ID, "btnLogin"))
+        )
+        login_button.click()
+        print("✅ Đã click nút đăng nhập")
+        
+        # Đợi trang chính xuất hiện (tối ưu: 5 giây - quan trọng nhất)
+        # Thử nhiều cách để đảm bảo đăng nhập thành công
         try:
-            print(f"🔄 Đang đăng nhập...")
-            
-            driver.get("https://hdfitnessyoga.timesoft.vn/")
-            print("✅ Đã truy cập trang web")
-            
-            # Đợi trang load hoàn toàn
-            WebDriverWait(driver, 10).until(  # Giảm xuống 10 giây
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-            
-            # Đợi form đăng nhập xuất hiện
-            username_field = WebDriverWait(driver, 8).until(  # Giảm xuống 8 giây
-                EC.presence_of_element_located((By.ID, "UserName"))
-            )
-            password_field = WebDriverWait(driver, 8).until(  # Giảm xuống 8 giây
-                EC.presence_of_element_located((By.ID, "Password"))
-            )
-            
-            # Clear và nhập thông tin đăng nhập
-            username_field.clear()
-            username_field.send_keys("Vuongvv")
-            print("✅ Đã nhập username")
-            
-            password_field.clear()
-            password_field.send_keys("291199")
-            print("✅ Đã nhập password")
-            
-            # Click nút đăng nhập
-            login_button = WebDriverWait(driver, 8).until(  # Giảm xuống 8 giây
-                EC.element_to_be_clickable((By.ID, "btnLogin"))
-            )
-            login_button.click()
-            print("✅ Đã click nút đăng nhập")
-            
-            # Đợi trang chính xuất hiện (kiểm tra một phần tử đặc trưng sau đăng nhập)
-            WebDriverWait(driver, 15).until(  # Giảm xuống 15 giây
+            WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.ID, "radio_0"))
             )
-            print("✅ Đăng nhập thành công!")
-            return True
-            
-        except TimeoutException as e:
-            print(f"❌ Timeout khi đăng nhập: {e}")
-            return False
-        except Exception as e:
-            print(f"❌ Lỗi không xác định khi đăng nhập: {e}")
-            return False
-    
-    return False
+        except TimeoutException:
+            # Thử cách khác nếu radio_0 không xuất hiện
+            try:
+                WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
+                )
+            except TimeoutException:
+                # Thử cách cuối cùng
+                WebDriverWait(driver, 2).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "table"))
+                )
+        
+        print("✅ Đăng nhập thành công!")
+        return True
+        
+    except TimeoutException as e:
+        print(f"❌ Timeout khi đăng nhập: {e}")
+        return False
+    except Exception as e:
+        print(f"❌ Lỗi không xác định khi đăng nhập: {e}")
+        return False
 
 
 # automation_app.py
@@ -174,19 +186,19 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
 
         # BƯỚC 1: Tìm khách hàng (Tối ưu timeout)
         try:
-            radio_all = WebDriverWait(driver, 5).until(  # Giảm xuống 5 giây
+            radio_all = WebDriverWait(driver, 4).until(  # Tối ưu: 4 giây
                 EC.element_to_be_clickable((By.ID, "radio_0"))
             )
             radio_all.click()
-            time.sleep(0.5)  # Giảm từ 1 xuống 0.5
+            time.sleep(0.3)  # Tối ưu: 0.3 giây
 
-            search_input = WebDriverWait(driver, 5).until(  # Giảm xuống 5 giây
+            search_input = WebDriverWait(driver, 4).until(  # Tối ưu: 4 giây
                 EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-control.form-search-main"))
             )
             search_input.clear()
             search_input.send_keys(phone_number)
             search_input.send_keys(Keys.ENTER)
-            time.sleep(1)  # Giảm từ 2 xuống 1
+            time.sleep(0.8)  # Tối ưu: 0.8 giây - đủ để load kết quả
         except TimeoutException as e:
             return {"status": "error", "message": f"Tự động hóa thất bại ở bước tìm khách hàng: {e}"}
         except Exception as e:
@@ -197,40 +209,40 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
             # Thử nhiều cách khác nhau để tìm nút đăng ký gói tập
             register_icon = None
             
-            # Cách 1: Tìm theo XPath với class và ng-click
+            # Cách 1: Tìm theo XPath với class và ng-click (tối ưu: 4 giây)
             try:
-                register_icon = WebDriverWait(driver, 5).until(  # Giảm xuống 5 giây
+                register_icon = WebDriverWait(driver, 4).until(
                     EC.element_to_be_clickable(
                         (By.XPATH, '//a[contains(@ng-click, "showRegisterModal")]//i[@class="fa fa-plus ts-register"]'))
                 )
             except TimeoutException:
                 print("Cách 1 thất bại, thử cách 2...")
                 
-                # Cách 2: Tìm theo class name
+                # Cách 2: Tìm theo class name (tối ưu: 2 giây)
                 try:
-                    register_icon = WebDriverWait(driver, 3).until(  # Giảm xuống 3 giây
+                    register_icon = WebDriverWait(driver, 2).until(
                         EC.element_to_be_clickable((By.CLASS_NAME, "ts-register"))
                     )
                 except TimeoutException:
                     print("Cách 2 thất bại, thử cách 3...")
                     
-                    # Cách 3: Tìm theo text content
+                    # Cách 3: Tìm theo text content (tối ưu: 2 giây)
                     try:
-                        register_icon = WebDriverWait(driver, 3).until(  # Giảm xuống 3 giây
+                        register_icon = WebDriverWait(driver, 2).until(
                             EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'fa-plus')]"))
                         )
                     except TimeoutException:
                         print("Cách 3 thất bại, thử cách 4...")
                         
-                        # Cách 4: Tìm theo link text
+                        # Cách 4: Tìm theo link text (tối ưu: 2 giây)
                         try:
-                            register_icon = WebDriverWait(driver, 3).until(  # Giảm xuống 3 giây
+                            register_icon = WebDriverWait(driver, 2).until(
                                 EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Đăng ký') or contains(., 'Register')]"))
                             )
                         except TimeoutException:
                             # Nếu tất cả cách đều thất bại, lấy HTML để debug
                             current_html = driver.page_source
-                            print(f"Không tìm thấy nút đăng ký gói tập. HTML hiện tại (cắt 1000 ký tự): {current_html[:1000]}")
+                            print(f"Không tìm thấy nút đăng ký gói tập. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
                             return {"status": "error", "message": "Không tìm thấy nút đăng ký gói tập. Vui lòng kiểm tra lại trang web hoặc liên hệ hỗ trợ."}
             
             if register_icon:
@@ -241,11 +253,11 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                     # Nếu bị chặn, dùng JavaScript click
                     driver.execute_script("arguments[0].click();", register_icon)
                 
-                time.sleep(1)  # Giảm từ 2 xuống 1
+                time.sleep(0.6)  # Tối ưu: 0.6 giây - đủ để modal mở
                 
-                # Kiểm tra xem modal đã mở chưa
+                # Kiểm tra xem modal đã mở chưa (tối ưu: 3 giây)
                 try:
-                    WebDriverWait(driver, 3).until(  # Giảm xuống 3 giây
+                    WebDriverWait(driver, 3).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
                     )
                 except TimeoutException:
@@ -259,17 +271,17 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
         try:
             service_group_select_element = None
             
-            # Cách 1: Tìm theo placeholder
+            # Cách 1: Tìm theo placeholder (tối ưu: 4 giây)
             try:
-                service_group_select_element = WebDriverWait(driver, 5).until(  # Giảm xuống 5 giây
+                service_group_select_element = WebDriverWait(driver, 4).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
                 )
             except TimeoutException:
                 print("Cách 1 thất bại, thử cách 2...")
                 
-                # Cách 2: Tìm theo ng-model
+                # Cách 2: Tìm theo ng-model (tối ưu: 2 giây)
                 try:
-                    service_group_select_element = WebDriverWait(driver, 3).until(  # Giảm xuống 3 giây
+                    service_group_select_element = WebDriverWait(driver, 2).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model*="Service"]'))
                     )
                 except TimeoutException:
@@ -285,7 +297,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                             raise Exception("Không tìm thấy md-select nào")
                     except Exception as e:
                         current_html = driver.page_source
-                        print(f"Không tìm thấy dropdown chọn nhóm dịch vụ. HTML hiện tại (cắt 1000 ký tự): {current_html[:1000]}")
+                        print(f"Không tìm thấy dropdown chọn nhóm dịch vụ. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
                         return {"status": "error", "message": "Không tìm thấy dropdown chọn nhóm dịch vụ. Vui lòng kiểm tra lại trang web."}
             
             if service_group_select_element:
@@ -296,12 +308,12 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                     # Nếu bị chặn, dùng JavaScript click
                     driver.execute_script("arguments[0].click();", service_group_select_element)
 
-                # Đợi dropdown mở
+                # Đợi dropdown mở (tối ưu: 3 giây)
                 try:
-                    WebDriverWait(driver, 5).until(  # Giảm xuống 5 giây
+                    WebDriverWait(driver, 3).until(
                         EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
                     )
-                    time.sleep(0.5)  # Giảm từ 1.5 xuống 0.5
+                    time.sleep(0.3)  # Tối ưu: 0.3 giây - đủ để dropdown ổn định
                 except TimeoutException:
                     return {"status": "error", "message": "Đã click dropdown nhưng menu không mở. Vui lòng thử lại."}
                     
@@ -310,7 +322,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
 
         # Kiểm tra thời gian đã trôi qua
         elapsed_time = time.time() - start_time
-        if elapsed_time > 45:  # Nếu đã dùng hơn 45 giây, dừng lại
+        if elapsed_time > 25:  # Nếu đã dùng hơn 25 giây, dừng lại (giảm từ 35)
             return {"status": "error", "message": f"Quá trình automation đã mất quá nhiều thời gian ({elapsed_time:.1f}s). Vui lòng thử lại."}
 
         # BƯỚC 3b: Chọn nhóm dịch vụ (Gym/Yoga) - Cải thiện error handling
@@ -783,6 +795,12 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
         # In thời gian tổng thể
         total_elapsed = time.time() - start_time
         print(f"⏱️ Tổng thời gian automation: {total_elapsed:.1f} giây")
+        if total_elapsed < 20:
+            print("🚀 Tốc độ xuất sắc!")
+        elif total_elapsed < 30:
+            print("⚡ Tốc độ tốt!")
+        else:
+            print("🐌 Tốc độ chậm, cần tối ưu thêm")
 
 
 # --- Hàm tự động hóa cho khách mới (Tối ưu cho 60 giây) ---
@@ -805,40 +823,40 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
             return {"status": "error", "message": "Đăng nhập Timesoft thất bại."}
 
         print("Đang điều hướng đến trang đăng ký khách hàng mới...")
-        time.sleep(1)  # Giảm từ 2 xuống 1
+        time.sleep(0.5)  # Tối ưu: 0.5 giây
         
         try:
             # Sử dụng XPATH để tìm nút dựa trên class và text
-            add_new_customer_button = WebDriverWait(driver, 8).until(  # Giảm xuống 8 giây
+            add_new_customer_button = WebDriverWait(driver, 6).until(  # Tối ưu: 6 giây
                 EC.element_to_be_clickable(
                     (By.XPATH, "//button[contains(@class, 'btn-green') and contains(., 'Tạo mới và đăng ký(F1)')]")
                 )
             )
             add_new_customer_button.click()
             print("Đã click nút 'Tạo mới và đăng ký (F1)'.")
-            time.sleep(1)  # Giảm từ 2 xuống 1
+            time.sleep(0.6)  # Tối ưu: 0.6 giây
         except TimeoutException as e:
             return {"status": "error",
                     "message": f"Không tìm thấy hoặc không click được nút 'Tạo mới và đăng ký (F1)': {e}"}
         except Exception as e:
             return {"status": "error", "message": f"Lỗi khi click nút 'Tạo mới và đăng ký (F1)': {e}"}
         
-        time.sleep(0.5)  # Giảm từ 1 xuống 0.5
+        time.sleep(0.3)  # Tối ưu: 0.3 giây
         
         try:
             # Tìm trường nhập "Họ và tên" (full_name)
             full_name_input_selector = (By.XPATH, "//input[@ng-model='item.Name' and @type='text']")
-            full_name_input = WebDriverWait(driver, 5).until(  # Giảm xuống 5 giây
+            full_name_input = WebDriverWait(driver, 4).until(  # Tối ưu: 4 giây
                 EC.presence_of_element_located(full_name_input_selector)
             )
             full_name_input.click()
             print("Đã click vào trường 'Họ và tên'.")
             full_name_input.send_keys(full_name)
             print(f"Đã điền tên: {full_name}")
-            time.sleep(1)  # Giảm từ 2 xuống 1
+            time.sleep(0.5)  # Tối ưu: 0.5 giây
 
             phone_number_input_selector = (By.XPATH, "//input[@ng-model='item.Mobile' and @type='text']")
-            phone_number_input = WebDriverWait(driver, 5).until(  # Giảm xuống 5 giây
+            phone_number_input = WebDriverWait(driver, 4).until(  # Tối ưu: 4 giây
                 EC.presence_of_element_located(phone_number_input_selector)
             )
             phone_number_input.click()
@@ -852,30 +870,30 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         except Exception as e:
             return {"status": "error", "message": f"Lỗi khi điền thông tin cá nhân: {e}"}
 
-        time.sleep(1)  # Giảm từ 2 xuống 1
+        time.sleep(0.5)  # Tối ưu: 0.5 giây
         
         print("Đang tìm và click nút 'Tạo mới (F4)' để lưu khách hàng...")
         try:
             # Sử dụng XPATH để tìm nút dựa trên class 'btn-success' và text 'Tạo mới(F4)'
-            create_new_customer_button = WebDriverWait(driver, 8).until(  # Giảm xuống 8 giây
+            create_new_customer_button = WebDriverWait(driver, 6).until(  # Tối ưu: 6 giây
                 EC.element_to_be_clickable(
                     (By.XPATH, "//button[contains(@class, 'btn-success') and contains(., 'Tạo mới(F4)')]")
                 )
             )
             create_new_customer_button.click()
             print("Đã click nút 'Tạo mới (F4)' để lưu khách hàng mới.")
-            time.sleep(3)  # Giảm từ 5 xuống 3
+            time.sleep(2)  # Tối ưu: 2 giây - đủ để lưu và chuyển trang
         except TimeoutException as e:
             return {"status": "error",
                     "message": f"Không tìm thấy nút 'Tạo mới (F4)' hoặc quá trình lưu không phản hồi hoặc không chuyển hướng đúng trang: {e}"}
         except Exception as e:
             return {"status": "error", "message": f"Lỗi khi lưu khách hàng mới: {e}"}
         
-        time.sleep(3)  # Giảm từ 5 xuống 3
+        time.sleep(1.5)  # Tối ưu: 1.5 giây - đủ để trang load
 
         # Kiểm tra thời gian đã trôi qua trước khi gọi hàm cập nhật gói tập
         elapsed_time = time.time() - start_time
-        if elapsed_time > 30:  # Nếu đã dùng hơn 30 giây, dừng lại
+        if elapsed_time > 18:  # Nếu đã dùng hơn 18 giây, dừng lại (giảm từ 25)
             return {"status": "error", "message": f"Quá trình đăng ký khách mới đã mất quá nhiều thời gian ({elapsed_time:.1f}s). Vui lòng thử lại."}
 
         result_existing_customer = _automate_for_existing_customer_sync(
@@ -910,6 +928,12 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         # In thời gian tổng thể
         total_elapsed = time.time() - start_time
         print(f"⏱️ Tổng thời gian automation cho khách mới: {total_elapsed:.1f} giây")
+        if total_elapsed < 18:
+            print("🚀 Tốc độ xuất sắc cho khách mới!")
+        elif total_elapsed < 25:
+            print("⚡ Tốc độ tốt cho khách mới!")
+        else:
+            print("🐌 Tốc độ chậm cho khách mới, cần tối ưu thêm")
 
 
 # --- Endpoint để bắt đầu tự động hóa ---

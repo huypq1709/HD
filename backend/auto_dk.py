@@ -20,8 +20,8 @@ import signal
 app = Flask(__name__)
 CORS(app)
 
-# Timeout tổng thể cho toàn bộ quá trình automation (35 giây - tối ưu với đăng nhập nhanh)
-TOTAL_TIMEOUT = 35
+# Timeout tổng thể cho toàn bộ quá trình automation (50 giây - tăng cho modal)
+TOTAL_TIMEOUT = 50
 
 class TimeoutError(Exception):
     pass
@@ -204,39 +204,39 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
         except Exception as e:
             return {"status": "error", "message": f"Lỗi trong quá trình tìm khách hàng: {e}"}
 
-        # BƯỚC 2: Click vào biểu tượng "Đăng ký gói tập" (Tối ưu timeout)
+        # BƯỚC 2: Click vào biểu tượng "Đăng ký gói tập" (Tăng timeout cho modal)
         try:
             # Thử nhiều cách khác nhau để tìm nút đăng ký gói tập
             register_icon = None
             
-            # Cách 1: Tìm theo XPath với class và ng-click (tối ưu: 4 giây)
+            # Cách 1: Tìm theo XPath với class và ng-click (tăng: 8 giây)
             try:
-                register_icon = WebDriverWait(driver, 4).until(
+                register_icon = WebDriverWait(driver, 8).until(
                     EC.element_to_be_clickable(
                         (By.XPATH, '//a[contains(@ng-click, "showRegisterModal")]//i[@class="fa fa-plus ts-register"]'))
                 )
             except TimeoutException:
                 print("Cách 1 thất bại, thử cách 2...")
                 
-                # Cách 2: Tìm theo class name (tối ưu: 2 giây)
+                # Cách 2: Tìm theo class name (tăng: 4 giây)
                 try:
-                    register_icon = WebDriverWait(driver, 2).until(
+                    register_icon = WebDriverWait(driver, 4).until(
                         EC.element_to_be_clickable((By.CLASS_NAME, "ts-register"))
                     )
                 except TimeoutException:
                     print("Cách 2 thất bại, thử cách 3...")
                     
-                    # Cách 3: Tìm theo text content (tối ưu: 2 giây)
+                    # Cách 3: Tìm theo text content (tăng: 4 giây)
                     try:
-                        register_icon = WebDriverWait(driver, 2).until(
+                        register_icon = WebDriverWait(driver, 4).until(
                             EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'fa-plus')]"))
                         )
                     except TimeoutException:
                         print("Cách 3 thất bại, thử cách 4...")
                         
-                        # Cách 4: Tìm theo link text (tối ưu: 2 giây)
+                        # Cách 4: Tìm theo link text (tăng: 4 giây)
                         try:
-                            register_icon = WebDriverWait(driver, 2).until(
+                            register_icon = WebDriverWait(driver, 4).until(
                                 EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Đăng ký') or contains(., 'Register')]"))
                             )
                         except TimeoutException:
@@ -253,11 +253,11 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                     # Nếu bị chặn, dùng JavaScript click
                     driver.execute_script("arguments[0].click();", register_icon)
                 
-                time.sleep(0.6)  # Tối ưu: 0.6 giây - đủ để modal mở
+                time.sleep(1.5)  # Tăng: 1.5 giây - đủ để modal mở hoàn toàn
                 
-                # Kiểm tra xem modal đã mở chưa (tối ưu: 3 giây)
+                # Kiểm tra xem modal đã mở chưa (tăng: 8 giây)
                 try:
-                    WebDriverWait(driver, 3).until(
+                    WebDriverWait(driver, 8).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
                     )
                 except TimeoutException:
@@ -266,22 +266,22 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
         except Exception as e:
             return {"status": "error", "message": f"Lỗi trong quá trình click Đăng ký gói tập: {str(e)}"}
 
-        # BƯỚC 3: Click vào md-select để mở dropdown "Chọn nhóm dịch vụ" (Tối ưu timeout)
+        # BƯỚC 3: Click vào md-select để mở dropdown "Chọn nhóm dịch vụ" (Tăng timeout)
         print(f"🏋️‍♀️ Đang mở dropdown 'Chọn nhóm dịch vụ'...")
         try:
             service_group_select_element = None
             
-            # Cách 1: Tìm theo placeholder (tối ưu: 4 giây)
+            # Cách 1: Tìm theo placeholder (tăng: 6 giây)
             try:
-                service_group_select_element = WebDriverWait(driver, 4).until(
+                service_group_select_element = WebDriverWait(driver, 6).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
                 )
             except TimeoutException:
                 print("Cách 1 thất bại, thử cách 2...")
                 
-                # Cách 2: Tìm theo ng-model (tối ưu: 2 giây)
+                # Cách 2: Tìm theo ng-model (tăng: 4 giây)
                 try:
-                    service_group_select_element = WebDriverWait(driver, 2).until(
+                    service_group_select_element = WebDriverWait(driver, 4).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, 'md-select[ng-model*="Service"]'))
                     )
                 except TimeoutException:
@@ -308,12 +308,12 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                     # Nếu bị chặn, dùng JavaScript click
                     driver.execute_script("arguments[0].click();", service_group_select_element)
 
-                # Đợi dropdown mở (tối ưu: 3 giây)
+                # Đợi dropdown mở (tăng: 5 giây)
                 try:
-                    WebDriverWait(driver, 3).until(
+                    WebDriverWait(driver, 5).until(
                         EC.visibility_of_element_located((By.CSS_SELECTOR, '.md-select-menu-container[aria-hidden="false"]'))
                     )
-                    time.sleep(0.3)  # Tối ưu: 0.3 giây - đủ để dropdown ổn định
+                    time.sleep(0.5)  # Tăng: 0.5 giây - đủ để dropdown ổn định
                 except TimeoutException:
                     return {"status": "error", "message": "Đã click dropdown nhưng menu không mở. Vui lòng thử lại."}
                     
@@ -322,7 +322,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
 
         # Kiểm tra thời gian đã trôi qua
         elapsed_time = time.time() - start_time
-        if elapsed_time > 25:  # Nếu đã dùng hơn 25 giây, dừng lại (giảm từ 35)
+        if elapsed_time > 45:  # Tăng: 45 giây - phù hợp với timeout mới cho modal
             return {"status": "error", "message": f"Quá trình automation đã mất quá nhiều thời gian ({elapsed_time:.1f}s). Vui lòng thử lại."}
 
         # BƯỚC 3b: Chọn nhóm dịch vụ (Gym/Yoga) - Cải thiện error handling

@@ -930,6 +930,9 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
             driver.quit()
             driver = None
 
+        # Thêm delay để chờ Timesoft cập nhật khách mới
+        time.sleep(2)
+
         result_existing_customer = _automate_for_existing_customer_sync(
              phone_number, service_type, membership_type
         )
@@ -940,7 +943,8 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
                     "message": "Đăng kí gói tập mới thành công và đã cập nhật gói tập. Quý khách sẽ được chuyển sang màn hình cập nhật khuôn mặt trong 5 giây",
                     "final_action": "redirect_faceid", "redirect_delay": 5}
         else:
-            # Nếu có lỗi khi cập nhật gói tập, trả về lỗi đó
+            # In log chi tiết nếu có lỗi khi cập nhật gói tập
+            print(f"[auto_dk.py] Lỗi khi cập nhật gói tập cho khách mới: {result_existing_customer['message']}")
             return {"status": "error",
                     "message": f"Đăng ký khách mới thành công, nhưng lỗi khi cập nhật gói tập: {result_existing_customer['message']}"}
 

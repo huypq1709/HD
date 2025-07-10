@@ -925,6 +925,11 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         if elapsed_time > 18:  # Nếu đã dùng hơn 18 giây, dừng lại (giảm từ 25)
             return {"status": "error", "message": f"Quá trình đăng ký khách mới đã mất quá nhiều thời gian ({elapsed_time:.1f}s). Vui lòng thử lại."}
 
+        # Đóng driver trước khi chuyển sang tạo gói cho khách (mở session mới)
+        if driver:
+            driver.quit()
+            driver = None
+
         result_existing_customer = _automate_for_existing_customer_sync(
              phone_number, service_type, membership_type
         )
@@ -954,6 +959,7 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         elif timer:
             timer.cancel()
         
+        # Chỉ quit nếu driver vẫn còn (chưa quit ở trên)
         if driver:
             driver.quit()
         

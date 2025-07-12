@@ -147,26 +147,61 @@ def _login_to_timesoft(driver: webdriver.Chrome):
 
 # ... (các imports khác)
 
-# Cập nhật ánh xạ gói tập sang index cho GYM
-MEMBERSHIP_INDEX_MAP_GYM = {
-    "1 year": 2,  # GYM 12 THÁNG
-    "1 month": 3,  # GYM 1 THÁNG
-    "1 day": 4,  # GYM 1 NGÀY
-    "3 months": 5,  # GYM 3 THÁNG
-    "6 months": 6,  # GYM 6 THÁNG
+# Ánh xạ gói tập sang index cho GYM - Phân biệt khách cũ và khách mới
+MEMBERSHIP_INDEX_MAP_GYM_EXISTING = {
+    "1 year": 2,  # GYM 12 THÁNG (c) khách cũ
+    "1 month": 3,  # GYM 1 THÁNG (c) khách cũ
+    "1 day": 4,  # GYM 1 NGÀY (c) khách cũ
+    "3 months": 5,  # GYM 3 THÁNG (c) khách cũ
+    "6 months": 6,  # GYM 6 THÁNG (c) khách cũ
 }
 
-# Ánh xạ gói tập sang index cho YOGA
-MEMBERSHIP_INDEX_MAP_YOGA = {
-    "1 month": 1,  # Yoga 1T 12B (vị trí 1)
-    "3 months": 2,  # YOGA 3T 36B (vị trí 2)
-    "6 months": 3,  # YOGA 6T 72B (vị trí 3)
-    "1 year": "last()"  # YOGA 12 THÁNG 144B (vị trí cuối cùng)
+MEMBERSHIP_INDEX_MAP_GYM_NEW = {
+    "1 year": 10,  # GYM 12 THÁNG (m) khách mới
+    "1 month": 7,  # GYM 1 THÁNG (m) khách mới
+    "1 day": 11,  # GYM 1 NGÀY (m) khách mới
+    "3 months": 8,  # GYM 3 THÁNG (m) khách mới
+    "6 months": 9,  # GYM 6 THÁNG (m) khách mới
+}
+
+# Ánh xạ gói tập sang index cho YOGA - Phân biệt khách cũ và khách mới
+MEMBERSHIP_INDEX_MAP_YOGA_EXISTING = {
+    "1 month": 1,  # Yoga 1T 12B (c) khách cũ
+    "3 months": 2,  # YOGA 3T 36B (c) khách cũ
+    "6 months": 3,  # YOGA 6T 72B (c) khách cũ
+    "1 year": "last()"  # YOGA 12 THÁNG 144B (c) khách cũ
+}
+
+MEMBERSHIP_INDEX_MAP_YOGA_NEW = {
+    "1 month": 12,  # Yoga 1T 12B (m) khách mới
+    "3 months": 13,  # YOGA 3T 36B (m) khách mới
+    "6 months": 10,  # YOGA 6T 72B (m) khách mới
+    "1 year": "11"  # YOGA 12 THÁNG 144B (m) khách mới
 }
 
 
-# --- Hàm tự động hóa cho khách cũ (Tối ưu cho 60 giây) ---
-def _automate_for_existing_customer_sync(phone_number, service_type, membership_type):
+def _get_membership_map(service_type, customer_type):
+    """
+    Lấy map gói tập phù hợp dựa trên loại dịch vụ và loại khách hàng
+    """
+    if service_type.lower() == "gym":
+        if customer_type == "new":
+            return MEMBERSHIP_INDEX_MAP_GYM_NEW
+        else:  # existing
+            return MEMBERSHIP_INDEX_MAP_GYM_EXISTING
+    elif service_type.lower() == "yoga":
+        if customer_type == "new":
+            return MEMBERSHIP_INDEX_MAP_YOGA_NEW
+        else:  # existing
+            return MEMBERSHIP_INDEX_MAP_YOGA_EXISTING
+    else:
+        return None
+
+
+def _create_membership_for_customer(phone_number, service_type, membership_type, customer_type):
+    """
+    Tạo gói tập cho khách hàng với map phù hợp dựa trên loại khách hàng
+    """
     driver = None
     start_time = time.time()
     timer = None
@@ -181,7 +216,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
             timer = threading.Timer(TOTAL_TIMEOUT, raise_timeout)
             timer.start()
         
-        print(f"🚀 Bắt đầu automation cho khách hàng: {phone_number}")
+        print(f"🚀 Bắt đầu tạo gói tập cho khách hàng: {phone_number} (loại: {customer_type})")
         
         driver = _initialize_driver()
         if not driver:
@@ -204,7 +239,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
             search_input.clear()
             search_input.send_keys(phone_number)
             search_input.send_keys(Keys.ENTER)
-            time.sleep(0.8)  # Tối ưu: 0.8 giây - đủ để load kết quả
+            time.sleep(1)  # Tối ưu: 0.8 giây - đủ để load kết quả
         except TimeoutException as e:
             return {"status": "error", "message": f"Tự động hóa thất bại ở bước tìm khách hàng: {e}"}
         except Exception as e:
@@ -418,7 +453,7 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
         except Exception as e:
             return {"status": "error", "message": f"Lỗi trong quá trình chọn nhóm dịch vụ: {str(e)}"}
 
-        # BƯỚC 4: Chọn gói tập - Cải thiện error handling
+        # BƯỚC 4: Chọn gói tập - Cải thiện error handling với map phù hợp
         print(f"🏋️‍♀️ Đang chọn gói tập: {membership_type}...")
         try:
             product_select = None
@@ -468,20 +503,16 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
                 except TimeoutException:
                     return {"status": "error", "message": "Đã click dropdown gói tập nhưng menu không mở. Vui lòng thử lại."}
 
-                # Chọn map dựa trên service_type
-                current_membership_map = None
-                if service_type.lower() == "gym":
-                    current_membership_map = MEMBERSHIP_INDEX_MAP_GYM
-                elif service_type.lower() == "yoga":
-                    current_membership_map = MEMBERSHIP_INDEX_MAP_YOGA
-                else:
+                # Chọn map dựa trên service_type và customer_type
+                current_membership_map = _get_membership_map(service_type, customer_type)
+                if current_membership_map is None:
                     return {"status": "error",
                             "message": f"Loại dịch vụ '{service_type}' không hợp lệ hoặc không có map gói tập được định nghĩa."}
 
                 target_index_membership_xpath_part = current_membership_map.get(membership_type)
                 if target_index_membership_xpath_part is None:
                     return {"status": "error",
-                            "message": f"Gói tập '{membership_type}' không hợp lệ hoặc không có index được ánh xạ trong map của {service_type.upper()}."}
+                            "message": f"Gói tập '{membership_type}' không hợp lệ hoặc không có index được ánh xạ trong map của {service_type.upper()} cho khách {customer_type}."}
 
                 # Tìm và chọn gói tập
                 membership_option_element = None
@@ -826,6 +857,14 @@ def _automate_for_existing_customer_sync(phone_number, service_type, membership_
             print("🐌 Tốc độ chậm, cần tối ưu thêm")
 
 
+# --- Hàm tự động hóa cho khách cũ (Tối ưu cho 60 giây) ---
+def _automate_for_existing_customer_sync(phone_number, service_type, membership_type):
+    """
+    Hàm wrapper cho khách cũ - gọi hàm chung với customer_type = "existing"
+    """
+    return _create_membership_for_customer(phone_number, service_type, membership_type, "existing")
+
+
 # --- Hàm tự động hóa cho khách mới (Tối ưu cho 60 giây) ---
 def _automate_for_new_customer_sync(phone_number, full_name, service_type, membership_type):
     driver = None
@@ -933,8 +972,9 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         # Thêm delay để chờ Timesoft cập nhật khách mới
         time.sleep(2)
 
-        result_existing_customer = _automate_for_existing_customer_sync(
-             phone_number, service_type, membership_type
+        # Tạo gói tập cho khách mới với map phù hợp
+        result_existing_customer = _create_membership_for_customer(
+             phone_number, service_type, membership_type, "new"
         )
 
         if result_existing_customer["status"] == "success":

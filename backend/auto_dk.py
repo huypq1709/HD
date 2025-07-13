@@ -20,8 +20,8 @@ import signal
 app = Flask(__name__)
 CORS(app)
 
-# Timeout tổng thể cho toàn bộ quá trình automation (50 giây - tăng cho modal)
-TOTAL_TIMEOUT = 50
+# Timeout tổng thể cho toàn bộ quá trình automation (60 giây - tăng cho khách mới)
+TOTAL_TIMEOUT = 60
 
 class TimeoutError(Exception):
     pass
@@ -225,7 +225,7 @@ def _create_membership_for_customer(phone_number, service_type, membership_type,
         if not _login_to_timesoft(driver):
             return {"status": "error", "message": "Đăng nhập Timesoft thất bại."}
 
-        # BƯỚC 1: Tìm khách hàng (Tối ưu timeout)
+        # BƯỚC 1: Tìm khách hàng (Cải thiện với retry cho khách mới)
         try:
             radio_all = WebDriverWait(driver, 4).until(  # Tối ưu: 4 giây
                 EC.element_to_be_clickable((By.ID, "radio_0"))
@@ -239,80 +239,116 @@ def _create_membership_for_customer(phone_number, service_type, membership_type,
             search_input.clear()
             search_input.send_keys(phone_number)
             search_input.send_keys(Keys.ENTER)
-            time.sleep(1)  # Tối ưu: 0.8 giây - đủ để load kết quả
+            
+            # Tăng thời gian chờ kết quả tìm kiếm cho khách mới
+            if customer_type == "new":
+                time.sleep(3)  # Tăng từ 1s lên 3s cho khách mới
+                print("🔍 Đang tìm kiếm khách hàng mới (có thể mất thời gian hơn)...")
+            else:
+                time.sleep(1)  # Giữ nguyên 1s cho khách cũ
+                
         except TimeoutException as e:
             return {"status": "error", "message": f"Tự động hóa thất bại ở bước tìm khách hàng: {e}"}
         except Exception as e:
             return {"status": "error", "message": f"Lỗi trong quá trình tìm khách hàng: {e}"}
 
-        # BƯỚC 2: Click vào biểu tượng "Đăng ký gói tập" (Tăng timeout cho modal)
+        # BƯỚC 2: Click vào biểu tượng "Đăng ký gói tập" (Cải thiện với retry cho khách mới)
         try:
             # Thử nhiều cách khác nhau để tìm nút đăng ký gói tập
             register_icon = None
             
-            # Cách 1: Tìm theo XPath với class và ng-click (tăng: 8 giây)
+            # Tăng timeout cho khách mới
+            timeout_for_new_customer = 12 if customer_type == "new" else 8
+            print(f"🔍 Đang tìm nút đăng ký gói tập (timeout: {timeout_for_new_customer}s)...")
+            
+            # Cách 1: Tìm theo XPath với class và ng-click
             try:
-                register_icon = WebDriverWait(driver, 8).until(
+                register_icon = WebDriverWait(driver, timeout_for_new_customer).until(
                     EC.element_to_be_clickable(
                         (By.XPATH, '//a[contains(@ng-click, "showRegisterModal")]//i[@class="fa fa-plus ts-register"]'))
                 )
             except TimeoutException:
                 print("Cách 1 thất bại, thử cách 2...")
                 
-                # Cách 2: Tìm theo class name (tăng: 4 giây)
+                # Cách 2: Tìm theo class name
                 try:
-                    register_icon = WebDriverWait(driver, 4).until(
+                    register_icon = WebDriverWait(driver, 6).until(
                         EC.element_to_be_clickable((By.CLASS_NAME, "ts-register"))
                     )
                 except TimeoutException:
                     print("Cách 2 thất bại, thử cách 3...")
                     
-                    # Cách 3: Tìm theo text content (tăng: 4 giây)
+                    # Cách 3: Tìm theo text content
                     try:
-                        register_icon = WebDriverWait(driver, 4).until(
+                        register_icon = WebDriverWait(driver, 6).until(
                             EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'fa-plus')]"))
                         )
                     except TimeoutException:
                         print("Cách 3 thất bại, thử cách 4...")
                         
-                        # Cách 4: Tìm theo link text (tăng: 4 giây)
+                        # Cách 4: Tìm theo link text
                         try:
-                            register_icon = WebDriverWait(driver, 4).until(
+                            register_icon = WebDriverWait(driver, 6).until(
                                 EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Đăng ký') or contains(., 'Register')]") )
                             )
                         except TimeoutException:
-                            # Nếu tất cả cách đều thất bại, lấy HTML để debug
-                            current_html = driver.page_source
-                            print(f"Không tìm thấy nút đăng ký gói tập. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
-                            return {"status": "error", "message": "Không tìm thấy nút đăng ký gói tập. Vui lòng kiểm tra lại trang web hoặc liên hệ hỗ trợ."}
+                            # Thử refresh trang và tìm lại cho khách mới
+                            if customer_type == "new":
+                                print("🔄 Khách mới - thử refresh trang và tìm lại...")
+                                driver.refresh()
+                                time.sleep(3)
+                                
+                                # Tìm lại sau refresh
+                                try:
+                                    register_icon = WebDriverWait(driver, 8).until(
+                                        EC.element_to_be_clickable(
+                                            (By.XPATH, '//a[contains(@ng-click, "showRegisterModal")]//i[@class="fa fa-plus ts-register"]'))
+                                    )
+                                except TimeoutException:
+                                    # Nếu vẫn thất bại, lấy HTML để debug
+                                    current_html = driver.page_source
+                                    print(f"Không tìm thấy nút đăng ký gói tập sau refresh. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
+                                    return {"status": "error", "message": "Không tìm thấy nút đăng ký gói tập sau khi refresh trang. Vui lòng kiểm tra lại trang web hoặc liên hệ hỗ trợ."}
+                            else:
+                                # Nếu tất cả cách đều thất bại, lấy HTML để debug
+                                current_html = driver.page_source
+                                print(f"Không tìm thấy nút đăng ký gói tập. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
+                                return {"status": "error", "message": "Không tìm thấy nút đăng ký gói tập. Vui lòng kiểm tra lại trang web hoặc liên hệ hỗ trợ."}
             
             if register_icon:
-                for attempt in range(3):
+                # Tăng số lần thử cho khách mới
+                max_attempts = 5 if customer_type == "new" else 3
+                for attempt in range(max_attempts):
                     try:
+                        print(f"🔄 Thử mở modal lần {attempt+1}/{max_attempts}...")
                         try:
                             register_icon.click()
                         except ElementClickInterceptedException:
                             driver.execute_script("arguments[0].click();", register_icon)
-                        time.sleep(1.2)
+                        
+                        # Tăng thời gian chờ cho khách mới
+                        wait_time = 2 if customer_type == "new" else 1.2
+                        time.sleep(wait_time)
+                        
                         # Kiểm tra modal đã mở chưa bằng JS
                         modal_open = driver.execute_script('''
                             var el = document.querySelector('md-select[placeholder="Chọn nhóm dịch vụ"]');
                             return el && el.offsetParent !== null;
                         ''')
                         if modal_open:
+                            print("✅ Modal đã mở thành công!")
                             break
                     except Exception as e:
                         print(f"Thử mở modal lần {attempt+1} thất bại: {e}")
-                    if attempt == 2:
+                    
+                    if attempt == max_attempts - 1:
                         current_html = driver.page_source
-                        print(f"Không mở được modal sau 3 lần thử. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
-                        return {"status": "error", "message": "Đã thử nhiều lần nhưng modal không mở. Vui lòng thử lại."}
-                else:
-                    # Nếu sau 3 lần vẫn chưa mở, trả về lỗi
-                    return {"status": "error", "message": "Không mở được modal đăng ký gói tập sau nhiều lần thử."}
-                # Kiểm tra xem modal đã mở chưa (tăng: 8 giây)
+                        print(f"Không mở được modal sau {max_attempts} lần thử. HTML hiện tại (cắt 800 ký tự): {current_html[:800]}")
+                        return {"status": "error", "message": f"Đã thử {max_attempts} lần nhưng modal không mở. Vui lòng thử lại."}
+                
+                # Kiểm tra xem modal đã mở chưa
                 try:
-                    WebDriverWait(driver, 8).until(
+                    WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, 'md-select[placeholder="Chọn nhóm dịch vụ"]'))
                     )
                 except TimeoutException:
@@ -969,8 +1005,9 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
             driver.quit()
             driver = None
 
-        # Thêm delay để chờ Timesoft cập nhật khách mới
-        time.sleep(2)
+        # Thêm delay để chờ Timesoft cập nhật khách mới (tăng từ 2s lên 5s)
+        print("⏳ Đang chờ hệ thống cập nhật thông tin khách hàng mới...")
+        time.sleep(5)
 
         # Tạo gói tập cho khách mới với map phù hợp
         result_existing_customer = _create_membership_for_customer(
@@ -985,8 +1022,14 @@ def _automate_for_new_customer_sync(phone_number, full_name, service_type, membe
         else:
             # In log chi tiết nếu có lỗi khi cập nhật gói tập
             print(f"[auto_dk.py] Lỗi khi cập nhật gói tập cho khách mới: {result_existing_customer['message']}")
-            return {"status": "error",
-                    "message": f"Đăng ký khách mới thành công, nhưng lỗi khi cập nhật gói tập: {result_existing_customer['message']}"}
+            
+            # Thông báo lỗi chi tiết hơn cho khách mới
+            if "modal không mở" in result_existing_customer['message']:
+                return {"status": "error",
+                        "message": "Đăng ký khách mới thành công! Tuy nhiên, hệ thống cần thêm thời gian để cập nhật thông tin. Vui lòng thử lại sau 30 giây hoặc liên hệ nhân viên để được hỗ trợ."}
+            else:
+                return {"status": "error",
+                        "message": f"Đăng ký khách mới thành công, nhưng lỗi khi cập nhật gói tập: {result_existing_customer['message']}"}
 
     except TimeoutError:
         elapsed_time = time.time() - start_time

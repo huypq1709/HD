@@ -46,7 +46,7 @@ def run_automation(phone, customer_type):
         WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "btnLogin"))).click()
 
         # Đợi trang load sau khi đăng nhập
-        time.sleep(3)
+        time.sleep(1.5)
 
         print(f"[DEBUG] Đợi radio_all xuất hiện...")
         radio_all = WebDriverWait(driver, 30).until(
@@ -66,7 +66,7 @@ def run_automation(phone, customer_type):
 
         # Đợi kết quả tìm kiếm load
         print(f"[DEBUG] Đợi kết quả tìm kiếm (có khách hoặc không có khách)...")
-        time.sleep(5)  # Đợi trang phản hồi sơ bộ (tăng từ 2 lên 4 giây)
+        time.sleep(7)  # Đợi trang phản hồi sơ bộ (tăng từ 2 lên 4 giây)
         try:
             def either_result(driver):
                 found = driver.find_elements(By.XPATH, "//td[@class='z-index-2 sticky-column-left zindex1000']/div[@class='d-flex align-items-center']")

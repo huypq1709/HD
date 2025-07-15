@@ -117,8 +117,8 @@ export function FaceId({ checkUserInfo, resetToIntro, language }: FaceIdProps) {
                 </p>
                 <p>
                     {language === 'en'
-                        ? 'Important Note: Please update FaceID at the front desk.'
-                        : 'Lưu ý quan trọng: Cập nhật FaceID tại quầy lễ tân.'}
+                        ? 'Please update FaceID at the front desk.'
+                        : 'Cập nhật FaceID tại quầy lễ tân.'}
                 </p>
             </div>
             <h2 className="text-2xl font-semibold text-gray-800">

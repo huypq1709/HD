@@ -111,6 +111,16 @@ export function FaceId({ checkUserInfo, resetToIntro, language }: FaceIdProps) {
 
     return (
         <div className="space-y-6 p-4">
+            <div className="mt-2 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700">
+                <p className="font-bold">
+                    {language === 'en' ? 'Important Note' : 'Lưu ý quan trọng'}
+                </p>
+                <p>
+                    {language === 'en'
+                        ? 'Important Note: Please update FaceID at the front desk.'
+                        : 'Lưu ý quan trọng: Cập nhật FaceID tại quầy lễ tân.'}
+                </p>
+            </div>
             <h2 className="text-2xl font-semibold text-gray-800">
                 {language === "en" ? "Update FaceId" : "Cập nhật Face ID"}
             </h2>
